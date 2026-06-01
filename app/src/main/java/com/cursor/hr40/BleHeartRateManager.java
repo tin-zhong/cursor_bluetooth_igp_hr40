@@ -25,8 +25,11 @@ import android.os.Looper;
 import android.os.ParcelUuid;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @SuppressWarnings("deprecation")
@@ -34,9 +37,42 @@ public final class BleHeartRateManager {
     public interface Listener {
         void onStatus(String status);
 
+        void onDeviceFound(DeviceCandidate candidate);
+
         void onHeartRate(HeartRateSample sample);
 
         void onError(String message);
+    }
+
+    public static final class DeviceCandidate {
+        public final String address;
+        public final String name;
+        public final int rssi;
+        public final boolean hasHeartRateService;
+        public final boolean likelyHeartRateBand;
+        public final boolean bonded;
+
+        DeviceCandidate(
+                String address,
+                String name,
+                int rssi,
+                boolean hasHeartRateService,
+                boolean likelyHeartRateBand,
+                boolean bonded) {
+            this.address = address;
+            this.name = name;
+            this.rssi = rssi;
+            this.hasHeartRateService = hasHeartRateService;
+            this.likelyHeartRateBand = likelyHeartRateBand;
+            this.bonded = bonded;
+        }
+
+        public String displayName() {
+            if (name == null || name.isEmpty()) {
+                return "未知 BLE 设备";
+            }
+            return name;
+        }
     }
 
     public static final UUID HEART_RATE_SERVICE =
@@ -53,6 +89,7 @@ public final class BleHeartRateManager {
     private BluetoothAdapter adapter;
     private BluetoothLeScanner scanner;
     private BluetoothGatt gatt;
+    private final Map<String, BluetoothDevice> discoveredDevices = new LinkedHashMap<>();
     private boolean scanning;
 
     public BleHeartRateManager(Context context, Listener listener) {
@@ -80,25 +117,34 @@ public final class BleHeartRateManager {
         }
 
         stopScan();
+        discoveredDevices.clear();
         scanner = adapter.getBluetoothLeScanner();
         if (scanner == null) {
             listener.onError("无法启动 BLE 扫描");
             return;
         }
 
+        notifyBondedDevices();
+
         List<ScanFilter> filters = new ArrayList<>();
         ScanSettings settings = new ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .setReportDelay(0L)
                 .build();
         scanning = true;
-        listener.onStatus("正在扫描 HR40 心率带...");
+        listener.onStatus("正在扫描 HR40。若 iGPSPORT 或其他 App 已连接，请先在对方 App 中解除绑定/断开连接。");
         scanner.startScan(filters, settings, scanCallback);
 
         mainHandler.postDelayed(() -> {
             if (scanning) {
-                listener.onStatus("仍在扫描。请确认 HR40 已佩戴并处于唤醒状态。");
+                listener.onStatus("仍在扫描：请确认 HR40 已佩戴唤醒，并且没有被 iGPSPORT 或系统蓝牙占用连接。");
             }
         }, 8000L);
+        mainHandler.postDelayed(() -> {
+            if (scanning) {
+                listener.onStatus("暂未发现可连接的 HR40。请关闭右侧 iGPSPORT 连接后，重新点击扫描。");
+            }
+        }, 18000L);
     }
 
     @SuppressLint("MissingPermission")
@@ -119,6 +165,28 @@ public final class BleHeartRateManager {
         }
     }
 
+    @SuppressLint("MissingPermission")
+    public void connectToDevice(String address) {
+        if (!hasBluetoothPermission()) {
+            listener.onError("缺少蓝牙连接权限");
+            return;
+        }
+        BluetoothDevice device = discoveredDevices.get(address);
+        if (device == null && adapter != null) {
+            try {
+                device = adapter.getRemoteDevice(address);
+            } catch (IllegalArgumentException ignored) {
+                device = null;
+            }
+        }
+        if (device == null) {
+            listener.onError("无法连接该设备，请重新扫描");
+            return;
+        }
+        stopScan();
+        connect(device);
+    }
+
     public void close() {
         disconnect();
     }
@@ -126,12 +194,14 @@ public final class BleHeartRateManager {
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
-            BluetoothDevice device = result.getDevice();
-            if (device == null || !looksLikeHeartRateBand(result)) {
-                return;
+            handleScanResult(result);
+        }
+
+        @Override
+        public void onBatchScanResults(List<ScanResult> results) {
+            for (ScanResult result : results) {
+                handleScanResult(result);
             }
-            stopScan();
-            connect(device);
         }
 
         @Override
@@ -147,7 +217,7 @@ public final class BleHeartRateManager {
             listener.onError("缺少蓝牙连接权限");
             return;
         }
-        String name = safeDeviceName(device);
+        String name = safeDeviceName(device, null);
         listener.onStatus("正在连接 " + (name.isEmpty() ? "心率带" : name) + "...");
         if (gatt != null) {
             gatt.close();
@@ -268,24 +338,102 @@ public final class BleHeartRateManager {
                 rrCount);
     }
 
-    private boolean looksLikeHeartRateBand(ScanResult result) {
-        ScanRecord record = result.getScanRecord();
-        if (record != null && record.getServiceUuids() != null) {
-            for (ParcelUuid uuid : record.getServiceUuids()) {
-                if (HEART_RATE_SERVICE.equals(uuid.getUuid())) {
-                    return true;
-                }
-            }
+    private void handleScanResult(ScanResult result) {
+        BluetoothDevice device = result.getDevice();
+        if (device == null) {
+            return;
         }
-        String name = safeDeviceName(result.getDevice()).toLowerCase(Locale.US);
-        return name.contains("hr40") || name.contains("igp") || name.contains("heart");
+        DeviceCandidate candidate = candidateFromScan(result);
+        if (!candidate.likelyHeartRateBand && candidate.name.isEmpty()) {
+            return;
+        }
+        discoveredDevices.put(candidate.address, device);
+        mainHandler.post(() -> listener.onDeviceFound(candidate));
+
+        if (candidate.likelyHeartRateBand) {
+            stopScan();
+            connect(device);
+        }
     }
 
     @SuppressLint("MissingPermission")
-    private String safeDeviceName(BluetoothDevice device) {
+    private void notifyBondedDevices() {
+        if (adapter == null || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hasBluetoothPermission()) {
+            return;
+        }
+        Set<BluetoothDevice> bondedDevices;
+        try {
+            bondedDevices = adapter.getBondedDevices();
+        } catch (SecurityException ignored) {
+            return;
+        }
+        for (BluetoothDevice device : bondedDevices) {
+            String name = safeDeviceName(device, null);
+            boolean likely = looksLikeHeartRateName(name);
+            if (!likely) {
+                continue;
+            }
+            String address = safeAddress(device);
+            discoveredDevices.put(address, device);
+            DeviceCandidate candidate = new DeviceCandidate(address, name, 0, false, true, true);
+            mainHandler.post(() -> listener.onDeviceFound(candidate));
+        }
+    }
+
+    private DeviceCandidate candidateFromScan(ScanResult result) {
+        BluetoothDevice device = result.getDevice();
+        ScanRecord record = result.getScanRecord();
+        String advertisedName = record == null ? null : record.getDeviceName();
+        String name = safeDeviceName(device, advertisedName);
+        boolean hasHeartRateService = hasHeartRateService(record);
+        boolean likely = hasHeartRateService || looksLikeHeartRateName(name);
+        return new DeviceCandidate(
+                safeAddress(device),
+                name,
+                result.getRssi(),
+                hasHeartRateService,
+                likely,
+                false);
+    }
+
+    private boolean hasHeartRateService(ScanRecord record) {
+        if (record == null || record.getServiceUuids() == null) {
+            return false;
+        }
+        for (ParcelUuid uuid : record.getServiceUuids()) {
+            if (HEART_RATE_SERVICE.equals(uuid.getUuid())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean looksLikeHeartRateName(String name) {
+        String lower = name == null ? "" : name.toLowerCase(Locale.US);
+        return lower.contains("hr40")
+                || lower.contains("igp")
+                || lower.contains("heart")
+                || lower.contains("heartrate")
+                || lower.contains("hrm");
+    }
+
+    @SuppressLint("MissingPermission")
+    private String safeDeviceName(BluetoothDevice device, String fallback) {
+        if (fallback != null && !fallback.isEmpty()) {
+            return fallback;
+        }
         try {
             String name = device.getName();
             return name == null ? "" : name;
+        } catch (SecurityException ignored) {
+            return "";
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private String safeAddress(BluetoothDevice device) {
+        try {
+            return device.getAddress();
         } catch (SecurityException ignored) {
             return "";
         }
