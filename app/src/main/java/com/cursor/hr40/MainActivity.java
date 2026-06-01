@@ -38,6 +38,7 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
     private WorkoutSession activeSession;
     private WorkoutSession lastCompletedSession;
     private HeartRateSample latestSample;
+    private boolean reconnectScheduled;
 
     private TextView statusText;
     private TextView bpmText;
@@ -99,6 +100,7 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
 
     @Override
     public void onHeartRate(HeartRateSample sample) {
+        reconnectScheduled = false;
         latestSample = sample;
         bpmText.setText(String.valueOf(sample.bpm));
         String contact = sample.contactSupported
@@ -119,6 +121,9 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
     public void onError(String message) {
         statusText.setText(message);
         showToast(message);
+        if (activeSession != null && message.contains("连接异常: 8")) {
+            scheduleWorkoutReconnect();
+        }
     }
 
     private void buildUi() {
@@ -195,6 +200,26 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
             return;
         }
         requestPermissions(requiredBlePermissions(), REQUEST_BLE_PERMISSIONS);
+    }
+
+    private void scheduleWorkoutReconnect() {
+        if (reconnectScheduled) {
+            return;
+        }
+        reconnectScheduled = true;
+        statusText.setText("运动中检测到心率带连接异常 8，正在自动重新扫描连接...");
+        handler.postDelayed(() -> {
+            if (activeSession == null) {
+                reconnectScheduled = false;
+                return;
+            }
+            if (hasBlePermissions()) {
+                heartRateManager.startScan();
+            } else {
+                reconnectScheduled = false;
+                requestPermissions(requiredBlePermissions(), REQUEST_BLE_PERMISSIONS);
+            }
+        }, 1200L);
     }
 
     private void startWorkout() {
