@@ -162,6 +162,9 @@ public final class BleHeartRateManager {
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 postError("连接异常: " + status);
                 bluetoothGatt.close();
+                if (gatt == bluetoothGatt) {
+                    gatt = null;
+                }
                 return;
             }
             if (newState == BluetoothProfile.STATE_CONNECTED) {
