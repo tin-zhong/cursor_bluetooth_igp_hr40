@@ -31,10 +31,6 @@ dist/hr40-offline-fitness-debug.apk
 
 下载该 APK 到一加平板 2 Pro 后，允许“安装未知来源应用”即可安装测试。
 
-## 测试注意事项
-
-HR40 同一时间通常只能被一个 App/设备连接。如果 iGPSPORT App 已显示心率带已连接，HR40 可能会停止 BLE 广播，导致本 App 一直处于扫描状态。测试本 App 前，请先在 iGPSPORT 中解除绑定或断开 HR40，然后重新佩戴唤醒心率带并点击“扫描并连接 HR40”。
-
 ## 权限
 
 - Android 12+：`BLUETOOTH_SCAN`、`BLUETOOTH_CONNECT`

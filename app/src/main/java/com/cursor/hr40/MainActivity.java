@@ -26,9 +26,7 @@ import android.widget.Toast;
 import org.json.JSONException;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.Locale;
-import java.util.Map;
 
 public final class MainActivity extends Activity implements BleHeartRateManager.Listener {
     private static final int REQUEST_BLE_PERMISSIONS = 1001;
@@ -46,8 +44,6 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
     private TextView profileText;
     private TextView workoutText;
     private TextView statsText;
-    private LinearLayout deviceListContainer;
-    private final Map<String, Button> deviceButtons = new LinkedHashMap<>();
     private Button startButton;
     private Button endButton;
     private Button exportButton;
@@ -90,7 +86,6 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
             return;
         }
         if (hasBlePermissions()) {
-            clearDeviceCandidates();
             heartRateManager.startScan();
         } else {
             showToast("需要蓝牙权限才能连接 HR40 心率带");
@@ -100,29 +95,6 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
     @Override
     public void onStatus(String status) {
         statusText.setText(status);
-    }
-
-
-    @Override
-    public void onDeviceFound(BleHeartRateManager.DeviceCandidate candidate) {
-        if (candidate.address == null || candidate.address.isEmpty()) {
-            return;
-        }
-        deviceListContainer.setVisibility(View.VISIBLE);
-        Button existing = deviceButtons.get(candidate.address);
-        String label = deviceButtonLabel(candidate);
-        if (existing != null) {
-            existing.setText(label);
-            return;
-        }
-        Button button = button(label);
-        button.setAllCaps(false);
-        button.setOnClickListener(view -> {
-            statusText.setText("正在手动连接 " + candidate.displayName() + "...");
-            heartRateManager.connectToDevice(candidate.address);
-        });
-        deviceButtons.put(candidate.address, button);
-        deviceListContainer.addView(button, matchWrap());
     }
 
     @Override
@@ -182,18 +154,6 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         connectButton.setOnClickListener(view -> scanOrRequestPermissions());
         root.addView(connectButton, matchWrap());
 
-        TextView scanHelp = label("提示：HR40 同一时间通常只能被一个 App 使用。若右侧 iGPSPORT 已显示连接，请先在 iGPSPORT 中解除绑定或断开连接，再回到本 App 扫描。");
-        scanHelp.setTextColor(Color.DKGRAY);
-        root.addView(scanHelp, matchWrap());
-
-        deviceListContainer = new LinearLayout(this);
-        deviceListContainer.setOrientation(LinearLayout.VERTICAL);
-        deviceListContainer.setVisibility(View.GONE);
-        TextView deviceTitle = label("扫描到的设备（如果未自动连接，可手动选择 HR40）");
-        deviceTitle.setTextColor(Color.rgb(21, 101, 192));
-        deviceListContainer.addView(deviceTitle, matchWrap());
-        root.addView(deviceListContainer, matchWrap());
-
         startButton = button("开始运动");
         startButton.setOnClickListener(view -> startWorkout());
         root.addView(startButton, matchWrap());
@@ -230,7 +190,6 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
     }
 
     private void scanOrRequestPermissions() {
-        clearDeviceCandidates();
         if (hasBlePermissions()) {
             heartRateManager.startScan();
             return;
@@ -437,34 +396,6 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
                     .append("\n");
         }
         statsText.setText(builder.toString());
-    }
-
-
-    private void clearDeviceCandidates() {
-        deviceButtons.clear();
-        if (deviceListContainer == null) {
-            return;
-        }
-        while (deviceListContainer.getChildCount() > 1) {
-            deviceListContainer.removeViewAt(1);
-        }
-        deviceListContainer.setVisibility(View.GONE);
-    }
-
-    private String deviceButtonLabel(BleHeartRateManager.DeviceCandidate candidate) {
-        StringBuilder builder = new StringBuilder();
-        builder.append(candidate.likelyHeartRateBand ? "连接候选心率带：" : "连接 BLE 设备：");
-        builder.append(candidate.displayName());
-        if (candidate.bonded) {
-            builder.append("（已配对）");
-        }
-        if (candidate.hasHeartRateService) {
-            builder.append("（心率服务）");
-        }
-        if (candidate.rssi != 0) {
-            builder.append(" RSSI " ).append(candidate.rssi);
-        }
-        return builder.toString();
     }
 
     private boolean hasBlePermissions() {
