@@ -1,1 +1,29 @@
-# cursor_bluetooth_igp_hr40
+# HR40 Offline Fitness
+
+一款面向 iGPSPORT/IGP HR40 心率带的原生 Android 离线运动监测应用。应用运行在支持 BLE 的 Android 设备上（例如一加平板 2 Pro），通过标准 Bluetooth Heart Rate Service 连接心率带，并在本机完成资料存储、运动记录、统计计算和 PDF 报告导出。
+
+## 功能
+
+- 首次打开应用录入运动人员姓名、性别、年龄、身高、体重，数据保存在设备本地应用私有存储中。
+- 扫描并连接 HR40 心率带，订阅标准心率测量特征 `0x2A37`。
+- 从“开始运动”到“结束运动”持续记录心率采样，运动数据以 JSON 保存在本机。
+- 离线计算平均/最高/最低心率、心率区间、估算能量消耗和采样数量。
+- 运动结束后导出 PDF 报告，包含运动概览、心率曲线、消耗和心率区间图表。
+- PDF 写入设备 `Downloads/HR40` 目录，并可通过系统分享面板发送。
+
+## 构建
+
+项目是无第三方运行时依赖的原生 Android/Java 应用，可用 Android Studio 打开根目录后同步并运行。
+
+```bash
+./gradlew assembleDebug
+```
+
+当前仓库不包含 Gradle Wrapper；如使用命令行构建，请先在本机安装 Gradle 或用 Android Studio 生成 wrapper。
+
+## 权限
+
+- Android 12+：`BLUETOOTH_SCAN`、`BLUETOOTH_CONNECT`
+- Android 11 及以下：`ACCESS_FINE_LOCATION`（BLE 扫描要求）
+
+所有运动和个人资料数据均保存在本机，不依赖网络服务。
