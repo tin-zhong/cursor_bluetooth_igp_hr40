@@ -23,6 +23,14 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 ./gradlew assembleDebug
 ```
 
+为了便于平板测试，当前分支还提交了一份已构建的 Debug APK：
+
+```text
+dist/hr40-offline-fitness-debug.apk
+```
+
+下载该 APK 到一加平板 2 Pro 后，允许“安装未知来源应用”即可安装测试。
+
 ## 权限
 
 - Android 12+：`BLUETOOTH_SCAN`、`BLUETOOTH_CONNECT`
