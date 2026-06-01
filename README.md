@@ -13,13 +13,15 @@
 
 ## 构建
 
-项目是无第三方运行时依赖的原生 Android/Java 应用，可用 Android Studio 打开根目录后同步并运行。
+项目是无第三方运行时依赖的原生 Android/Java 应用，可用 Android Studio 打开根目录后同步并运行，也可以直接使用仓库内的 Gradle Wrapper 构建。
 
 ```bash
+./scripts/setup_android_env.sh
+export ANDROID_HOME="$HOME/android-sdk"
+export ANDROID_SDK_ROOT="$HOME/android-sdk"
+export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 ./gradlew assembleDebug
 ```
-
-当前仓库不包含 Gradle Wrapper；如使用命令行构建，请先在本机安装 Gradle 或用 Android Studio 生成 wrapper。
 
 ## 权限
 

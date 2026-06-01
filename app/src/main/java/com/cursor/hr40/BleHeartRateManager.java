@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+@SuppressWarnings("deprecation")
 public final class BleHeartRateManager {
     public interface Listener {
         void onStatus(String status);
