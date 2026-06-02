@@ -905,7 +905,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("历史数据管理")
-                .setMessage("自动清理：" + (autoEnabled ? "已开启" : "已关闭") + " | 保留周期：" + currentDays + " 天")
+                .setMessage("自动清理：" + (autoEnabled ? "已开启" : "已关闭") + " | 保留周期：" + retentionPeriodLabel(currentDays))
                 .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> {
                     if (isChecked) {
                         selected.add(which);
@@ -933,12 +933,34 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     private void showAutoCleanupSettingsDialog() {
-        final int[] retentionOptions = new int[]{7, 30, 90, 180, 365};
-        final String[] retentionLabels = new String[]{"保留 1 周", "保留 1 个月", "保留 3 个月", "保留 6 个月", "保留 1 年"};
         SharedPreferences prefs = getSharedPreferences(PREFS_META, MODE_PRIVATE);
         boolean autoEnabled = prefs.getBoolean(KEY_AUTO_CLEANUP_ENABLED, false);
         int currentDays = prefs.getInt(KEY_RETENTION_DAYS, 30);
+        String[] items = new String[]{
+                "自动清理：" + (autoEnabled ? "已开启" : "已关闭"),
+                "保留周期：" + retentionPeriodLabel(currentDays)
+        };
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("自动清理设置")
+                .setItems(items, (dialog, which) -> {
+                    if (which == 0) {
+                        boolean next = !autoEnabled;
+                        prefs.edit().putBoolean(KEY_AUTO_CLEANUP_ENABLED, next).apply();
+                        showToast(next ? "自动清理已开启" : "自动清理已关闭");
+                        dialog.dismiss();
+                        showAutoCleanupSettingsDialog();
+                    } else {
+                        dialog.dismiss();
+                        showRetentionPeriodPickerDialog(prefs, currentDays);
+                    }
+                })
+                .setNegativeButton("完成", null)
+                .show();
+    }
 
+    private void showRetentionPeriodPickerDialog(SharedPreferences prefs, int currentDays) {
+        final int[] retentionOptions = new int[]{7, 30, 90, 180, 365};
+        final String[] retentionLabels = new String[]{"1 周（7 天）", "1 个月（30 天）", "3 个月（90 天）", "6 个月（180 天）", "1 年（365 天）"};
         int checked = 1;
         for (int i = 0; i < retentionOptions.length; i++) {
             if (retentionOptions[i] == currentDays) {
@@ -946,23 +968,34 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                 break;
             }
         }
-        final boolean[] auto = new boolean[]{autoEnabled};
-        final int[] selectedDays = new int[]{currentDays};
-
         new MaterialAlertDialogBuilder(this)
-                .setTitle("自动清理设置")
-                .setMessage("自动清理与保留周期")
-                .setMultiChoiceItems(new String[]{"启用自动清理（与保留周期同一策略）"}, new boolean[]{autoEnabled}, (dialog, which, isChecked) -> auto[0] = isChecked)
-                .setSingleChoiceItems(retentionLabels, checked, (dialog, which) -> selectedDays[0] = retentionOptions[which])
-                .setPositiveButton("保存", (dialog, which) -> {
-                    prefs.edit()
-                            .putBoolean(KEY_AUTO_CLEANUP_ENABLED, auto[0])
-                            .putInt(KEY_RETENTION_DAYS, selectedDays[0])
-                            .apply();
-                    showToast("自动清理设置已保存");
+                .setTitle("选择保留周期")
+                .setSingleChoiceItems(retentionLabels, checked, (dialog, which) -> {
+                    int days = retentionOptions[which];
+                    prefs.edit().putInt(KEY_RETENTION_DAYS, days).apply();
+                    showToast("保留周期：" + retentionPeriodLabel(days));
+                    dialog.dismiss();
+                    showAutoCleanupSettingsDialog();
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    private static String retentionPeriodLabel(int days) {
+        switch (days) {
+            case 7:
+                return "1 周";
+            case 30:
+                return "1 个月";
+            case 90:
+                return "3 个月";
+            case 180:
+                return "6 个月";
+            case 365:
+                return "1 年";
+            default:
+                return days + " 天";
+        }
     }
 
     private int cleanupHistoryOlderThanDays(int days) {
