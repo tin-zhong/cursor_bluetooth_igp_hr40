@@ -21,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -32,6 +33,19 @@ public final class RawDataExporter {
     public static Uri export(Context context, List<WorkoutWithDetails> workouts) throws IOException {
         String fileName = "hr40_raw_workouts_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
                 .format(new Date()) + ".json";
+        return exportWithName(context, fileName, workouts);
+    }
+
+    public static Uri exportSingle(Context context, WorkoutWithDetails workout) throws IOException {
+        if (workout == null || workout.workout == null) {
+            throw new IOException("无可导出的原始记录");
+        }
+        String fileName = "hr40_raw_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+                .format(new Date(workout.workout.startMillis)) + "_" + workout.workout.id.substring(0, 8) + ".json";
+        return exportWithName(context, fileName, Collections.singletonList(workout));
+    }
+
+    private static Uri exportWithName(Context context, String fileName, List<WorkoutWithDetails> workouts) throws IOException {
         String json = toJson(workouts);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             return writeToDownloads(context, fileName, json);

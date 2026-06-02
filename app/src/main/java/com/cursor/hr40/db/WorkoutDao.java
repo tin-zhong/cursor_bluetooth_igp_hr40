@@ -28,4 +28,7 @@ public interface WorkoutDao {
     @Transaction
     @Query("SELECT * FROM workout_records ORDER BY startMillis DESC")
     List<WorkoutWithDetails> loadAllWorkoutsWithDetails();
+
+    @Query("DELETE FROM workout_records WHERE startMillis < :cutoffMillis")
+    int deleteWorkoutsOlderThan(long cutoffMillis);
 }
