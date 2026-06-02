@@ -11,8 +11,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 
 public final class WorkoutRepository {
     private static final String DIR_NAME = "workouts";
@@ -33,13 +35,22 @@ public final class WorkoutRepository {
     }
 
     public static WorkoutSession loadLatest(Context context) throws IOException {
+        List<WorkoutSession> sessions = loadAll(context);
+        return sessions.isEmpty() ? null : sessions.get(0);
+    }
+
+    public static List<WorkoutSession> loadAll(Context context) throws IOException {
         File dir = workoutsDir(context);
         File[] files = dir.listFiles((file, name) -> name.endsWith(".json"));
         if (files == null || files.length == 0) {
-            return null;
+            return new ArrayList<>();
         }
         Arrays.sort(files, Comparator.comparingLong(File::lastModified).reversed());
-        return read(files[0]);
+        List<WorkoutSession> sessions = new ArrayList<>();
+        for (File file : files) {
+            sessions.add(read(file));
+        }
+        return sessions;
     }
 
     private static WorkoutSession read(File file) throws IOException {
