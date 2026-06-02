@@ -146,7 +146,8 @@ public final class PdfReportExporter {
         drawText(canvas, paint, "运动开始", dateTime(session.startMillis), MARGIN, y);
         drawText(canvas, paint, "运动结束", session.endMillis > 0L ? dateTime(session.endMillis) : "进行中", 310, y);
         y += 18;
-        drawText(canvas, paint, "运动时长", duration(session.durationMillis()), MARGIN, y);
+        drawText(canvas, paint, "训练类型", workoutTypeLabel(session.workoutType), MARGIN, y);
+        drawText(canvas, paint, "运动时长", duration(session.durationMillis()), 310, y);
         drawText(canvas, paint, "采样数量", String.valueOf(stats.sampleCount), 310, y);
         y += 18;
         drawText(canvas, paint, "平均心率", stats.avgBpm + " bpm", MARGIN, y);
@@ -399,6 +400,13 @@ public final class PdfReportExporter {
 
     private static String dateTime(long millis) {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA).format(new Date(millis));
+    }
+
+    private static String workoutTypeLabel(String workoutType) {
+        if (WorkoutSession.TYPE_STRENGTH.equals(workoutType)) {
+            return "力量训练";
+        }
+        return "有氧训练";
     }
 
     private static String duration(long millis) {

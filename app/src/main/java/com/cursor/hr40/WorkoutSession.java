@@ -10,20 +10,25 @@ import java.util.List;
 import java.util.UUID;
 
 public final class WorkoutSession {
+    public static final String TYPE_AEROBIC = "aerobic";
+    public static final String TYPE_STRENGTH = "strength";
+
     public final String id;
     public final long startMillis;
     public long endMillis;
+    public final String workoutType;
     private final ArrayList<HeartRateSample> samples = new ArrayList<>();
     private final ArrayList<StrengthSet> strengthSets = new ArrayList<>();
 
-    public WorkoutSession(String id, long startMillis, long endMillis) {
+    public WorkoutSession(String id, long startMillis, long endMillis, String workoutType) {
         this.id = id;
         this.startMillis = startMillis;
         this.endMillis = endMillis;
+        this.workoutType = TYPE_STRENGTH.equals(workoutType) ? TYPE_STRENGTH : TYPE_AEROBIC;
     }
 
-    public static WorkoutSession startNow() {
-        return new WorkoutSession(UUID.randomUUID().toString(), System.currentTimeMillis(), 0L);
+    public static WorkoutSession startNow(String workoutType) {
+        return new WorkoutSession(UUID.randomUUID().toString(), System.currentTimeMillis(), 0L, workoutType);
     }
 
     public boolean isActive() {
@@ -62,6 +67,7 @@ public final class WorkoutSession {
         json.put("id", id);
         json.put("startMillis", startMillis);
         json.put("endMillis", endMillis);
+        json.put("workoutType", workoutType);
         JSONArray array = new JSONArray();
         for (HeartRateSample sample : samples) {
             array.put(sample.toJson());
@@ -79,7 +85,8 @@ public final class WorkoutSession {
         WorkoutSession session = new WorkoutSession(
                 json.optString("id", UUID.randomUUID().toString()),
                 json.optLong("startMillis"),
-                json.optLong("endMillis"));
+                json.optLong("endMillis"),
+                json.optString("workoutType", TYPE_AEROBIC));
         JSONArray array = json.optJSONArray("samples");
         if (array != null) {
             for (int i = 0; i < array.length(); i++) {

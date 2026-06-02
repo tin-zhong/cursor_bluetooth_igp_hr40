@@ -1,8 +1,6 @@
 package com.cursor.hr40;
 
 import android.Manifest;
-import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -12,28 +10,32 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
-import android.widget.ScrollView;
-import android.widget.TextView;
 import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.List;
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import org.json.JSONException;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
-public final class MainActivity extends Activity implements BleHeartRateManager.Listener {
+public final class MainActivity extends AppCompatActivity implements BleHeartRateManager.Listener {
     private static final int REQUEST_BLE_PERMISSIONS = 1001;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -48,18 +50,16 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
     private TextView statusText;
     private TextView bpmText;
     private TextView durationText;
-    private TextView profileText;
-    private TextView workoutText;
-    private TextView statsText;
-    private Button startButton;
-    private Button endButton;
-    private Button exportButton;
-    private LinearLayout strengthPanel;
+    private LinearLayout durationSection;
+    private MaterialButton startButton;
+    private MaterialButton endButton;
+    private MaterialButton exportButton;
+    private MaterialCardView strengthPanel;
     private Spinner exerciseSpinner;
     private ArrayAdapter<String> exerciseAdapter;
     private final List<String> exerciseNames = new ArrayList<>();
-    private RadioGroup weightUnitGroup;
-    private EditText strengthWeightInput;
+    private TextInputEditText strengthWeightInput;
+    private MaterialButton unitToggleButton;
     private TextView repsValueText;
     private TextView strengthLogText;
     private int pendingReps;
@@ -80,7 +80,7 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         buildUi();
         reloadExerciseNames();
         loadLatestWorkout();
-        updateAllUi();
+        updateWorkoutUi();
         if (profile == null) {
             showProfileDialog(false);
         }
@@ -146,147 +146,171 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
 
     private void buildUi() {
         ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.setBackgroundColor(getColor(R.color.md_background));
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(32, 40, 32, 32);
-        scrollView.addView(root);
+        root.setPadding(dp(20), dp(28), dp(20), dp(24));
+        scrollView.addView(root, matchWrap());
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v1.1.0");
-        title.setTextSize(24f);
-        title.setTextColor(Color.rgb(18, 52, 86));
+        title.setText("HR40 离线运动监测 v1.1.1");
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
+        title.setTextColor(getColor(R.color.md_primary));
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         root.addView(title, matchWrap());
 
-        statusText = label("未连接心率带");
+        statusText = textView("未连接心率带");
         statusText.setGravity(Gravity.CENTER_HORIZONTAL);
+        statusText.setTextColor(Color.DKGRAY);
         root.addView(statusText, matchWrap());
+
+        MaterialCardView metricsCard = card();
+        LinearLayout metricsContent = verticalLayout();
+        metricsCard.addView(metricsContent);
 
         bpmText = new TextView(this);
         bpmText.setText("--");
-        bpmText.setTextSize(64f);
+        bpmText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f);
         bpmText.setTextColor(Color.GRAY);
         bpmText.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.addView(bpmText, matchWrap());
+        metricsContent.addView(bpmText, matchWrap());
 
-        TextView durationLabel = label("运动时长");
+        durationSection = verticalLayout();
+        TextView durationLabel = textView("运动时长");
         durationLabel.setGravity(Gravity.CENTER_HORIZONTAL);
         durationLabel.setTextColor(Color.DKGRAY);
-        root.addView(durationLabel, matchWrap());
-
+        durationSection.addView(durationLabel, matchWrap());
         durationText = new TextView(this);
         durationText.setText("00:00");
-        durationText.setTextSize(64f);
+        durationText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f);
         durationText.setTextColor(Color.BLACK);
         durationText.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.addView(durationText, matchWrap());
+        durationSection.addView(durationText, matchWrap());
+        durationSection.setVisibility(View.GONE);
+        metricsContent.addView(durationSection, matchWrap());
 
-        TextView bpmLabel = label("bpm");
+        TextView bpmLabel = textView("bpm");
         bpmLabel.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.addView(bpmLabel, matchWrap());
+        bpmLabel.setTextColor(Color.DKGRAY);
+        metricsContent.addView(bpmLabel, matchWrap());
+        root.addView(metricsCard, matchWrap());
 
-        Button connectButton = button("扫描并连接 HR40");
-        connectButton.setOnClickListener(view -> scanOrRequestPermissions());
-        root.addView(connectButton, matchWrap());
+        root.addView(materialButton("扫描并连接 HR40", v -> scanOrRequestPermissions()), matchWrap());
 
-        startButton = button("开始运动");
-        startButton.setOnClickListener(view -> startWorkout());
+        startButton = materialButton("开始运动", v -> promptWorkoutType());
         root.addView(startButton, matchWrap());
 
-        endButton = button("结束运动并导出 PDF");
-        endButton.setOnClickListener(view -> finishWorkoutAndExport());
+        endButton = materialButton("结束运动并导出 PDF", v -> finishWorkoutAndExport());
+        endButton.setEnabled(false);
         root.addView(endButton, matchWrap());
 
-        exportButton = button("导出最近一次运动 PDF");
-        exportButton.setOnClickListener(view -> exportLastWorkout());
+        exportButton = materialButton("导出最近一次运动 PDF", v -> exportLastWorkout());
         root.addView(exportButton, matchWrap());
 
+        root.addView(materialButton("动作管理", v -> showExerciseManagementDialog()), matchWrap());
+        root.addView(materialButton("编辑运动人员资料", v -> showProfileDialog(true)), matchWrap());
 
-        strengthPanel = new LinearLayout(this);
-        strengthPanel.setOrientation(LinearLayout.VERTICAL);
+        strengthPanel = card();
+        strengthPanel.setVisibility(View.GONE);
+        LinearLayout strengthContent = verticalLayout();
+        strengthPanel.addView(strengthContent);
 
-        TextView strengthTitle = label("力量训练（开始运动后记录）");
-        strengthTitle.setTextColor(Color.rgb(21, 101, 192));
-        strengthPanel.addView(strengthTitle, matchWrap());
+        TextView strengthTitle = textView("力量训练");
+        strengthTitle.setTextColor(getColor(R.color.md_primary));
+        strengthTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f);
+        strengthContent.addView(strengthTitle, matchWrap());
 
         exerciseSpinner = new Spinner(this);
-        strengthPanel.addView(exerciseSpinner, matchWrap());
+        strengthContent.addView(exerciseSpinner, matchWrap());
 
-        Button addExerciseButton = button("添加动作");
-        addExerciseButton.setOnClickListener(view -> showAddExerciseDialog());
-        strengthPanel.addView(addExerciseButton, matchWrap());
+        LinearLayout weightRow = new LinearLayout(this);
+        weightRow.setOrientation(LinearLayout.HORIZONTAL);
+        weightRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        weightUnitGroup = new RadioGroup(this);
-        weightUnitGroup.setOrientation(RadioGroup.HORIZONTAL);
-        RadioButton kgUnit = new RadioButton(this);
-        kgUnit.setText("kg");
-        kgUnit.setId(View.generateViewId());
-        RadioButton lbUnit = new RadioButton(this);
-        lbUnit.setText("lb");
-        lbUnit.setId(View.generateViewId());
-        weightUnitGroup.addView(kgUnit);
-        weightUnitGroup.addView(lbUnit);
-        if (StrengthSet.UNIT_LB.equals(ExerciseStore.loadWeightUnit(this))) {
-            weightUnitGroup.check(lbUnit.getId());
-        } else {
-            weightUnitGroup.check(kgUnit.getId());
-        }
-        weightUnitGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            String unit = checkedId == lbUnit.getId() ? StrengthSet.UNIT_LB : StrengthSet.UNIT_KG;
-            ExerciseStore.saveWeightUnit(this, unit);
-        });
-        strengthPanel.addView(weightUnitGroup, matchWrap());
+        TextInputLayout weightLayout = new TextInputLayout(
+                this, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+        weightLayout.setHint("重量");
+        strengthWeightInput = new TextInputEditText(this);
+        strengthWeightInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        weightLayout.addView(strengthWeightInput);
+        LinearLayout.LayoutParams weightParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        weightParams.setMargins(0, 0, dp(8), 0);
+        weightRow.addView(weightLayout, weightParams);
 
-        strengthWeightInput = input("重量", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        strengthPanel.addView(strengthWeightInput, matchWrap());
+        unitToggleButton = outlinedButton(currentWeightUnitLabel());
+        unitToggleButton.setOnClickListener(v -> toggleWeightUnit());
+        weightRow.addView(unitToggleButton, wrapContent());
+        strengthContent.addView(weightRow, matchWrap());
 
-        LinearLayout repsRow = new LinearLayout(this);
-        repsRow.setOrientation(LinearLayout.HORIZONTAL);
-        repsRow.setGravity(Gravity.CENTER_VERTICAL);
-        repsValueText = label("0");
-        repsValueText.setTextSize(28f);
-        repsValueText.setGravity(Gravity.CENTER);
-        repsValueText.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        repsRow.addView(createRepsButton("-10", -10));
-        repsRow.addView(createRepsButton("-5", -5));
-        repsRow.addView(createRepsButton("-1", -1));
-        repsRow.addView(repsValueText);
-        repsRow.addView(createRepsButton("+1", 1));
-        repsRow.addView(createRepsButton("+5", 5));
-        repsRow.addView(createRepsButton("+10", 10));
-        strengthPanel.addView(repsRow, matchWrap());
+        TextView repsLabel = textView("次数");
+        repsLabel.setTextColor(Color.DKGRAY);
+        strengthContent.addView(repsLabel, matchWrap());
 
-        Button recordSetButton = button("记录本组");
-        recordSetButton.setOnClickListener(view -> recordStrengthSet());
-        strengthPanel.addView(recordSetButton, matchWrap());
+        LinearLayout repsMinusRow = new LinearLayout(this);
+        repsMinusRow.setOrientation(LinearLayout.HORIZONTAL);
+        repsMinusRow.setGravity(Gravity.CENTER);
+        repsMinusRow.addView(repButton("-10", -10));
+        repsMinusRow.addView(repButton("-5", -5));
+        repsMinusRow.addView(repButton("-1", -1));
+        strengthContent.addView(repsMinusRow, matchWrap());
 
-        strengthLogText = label("");
+        repsValueText = textView("0");
+        repsValueText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f);
+        repsValueText.setGravity(Gravity.CENTER_HORIZONTAL);
+        strengthContent.addView(repsValueText, matchWrap());
+
+        LinearLayout repsPlusRow = new LinearLayout(this);
+        repsPlusRow.setOrientation(LinearLayout.HORIZONTAL);
+        repsPlusRow.setGravity(Gravity.CENTER);
+        repsPlusRow.addView(repButton("+1", 1));
+        repsPlusRow.addView(repButton("+5", 5));
+        repsPlusRow.addView(repButton("+10", 10));
+        strengthContent.addView(repsPlusRow, matchWrap());
+
+        strengthContent.addView(materialButton("记录本组", v -> recordStrengthSet()), matchWrap());
+
+        strengthLogText = textView("");
         strengthLogText.setTextIsSelectable(true);
-        strengthPanel.addView(strengthLogText, matchWrap());
+        strengthContent.addView(strengthLogText, matchWrap());
 
         root.addView(strengthPanel, matchWrap());
-
-        Button editProfileButton = button("编辑运动人员资料");
-        editProfileButton.setOnClickListener(view -> showProfileDialog(true));
-        root.addView(editProfileButton, matchWrap());
-
-        profileText = label("");
-        profileText.setTextIsSelectable(true);
-        root.addView(profileText, matchWrap());
-
-        workoutText = label("");
-        workoutText.setTextIsSelectable(true);
-        root.addView(workoutText, matchWrap());
-
-        statsText = label("");
-        statsText.setTextIsSelectable(true);
-        root.addView(statsText, matchWrap());
-
-        TextView note = label("数据完全保存在本机：个人资料使用应用私有存储，运动记录使用本地 JSON，PDF 导出到 Downloads/HR40。");
-        note.setTextColor(Color.DKGRAY);
-        root.addView(note, matchWrap());
-
         setContentView(scrollView);
+    }
+
+    private void promptWorkoutType() {
+        if (profile == null) {
+            showProfileDialog(false);
+            return;
+        }
+        if (activeSession != null) {
+            showToast("当前已有运动记录正在进行");
+            return;
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("选择训练类型")
+                .setItems(new CharSequence[]{"力量训练", "有氧训练"}, (dialog, which) -> {
+                    if (which == 0) {
+                        beginWorkout(WorkoutSession.TYPE_STRENGTH);
+                    } else {
+                        beginWorkout(WorkoutSession.TYPE_AEROBIC);
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void beginWorkout(String workoutType) {
+        activeSession = WorkoutSession.startNow(workoutType);
+        pendingReps = 0;
+        repsValueText.setText("0");
+        strengthWeightInput.setText("");
+        persistSessionQuietly(activeSession);
+        statusText.setText(WorkoutSession.TYPE_STRENGTH.equals(workoutType)
+                ? "力量训练已开始，等待 HR40 心率数据..."
+                : "有氧训练已开始，等待 HR40 心率数据...");
+        updateWorkoutUi();
     }
 
     private void scanOrRequestPermissions() {
@@ -317,24 +341,6 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         }, 1200L);
     }
 
-    private void startWorkout() {
-        if (profile == null) {
-            showProfileDialog(false);
-            return;
-        }
-        if (activeSession != null) {
-            showToast("当前已有运动记录正在进行");
-            return;
-        }
-        activeSession = WorkoutSession.startNow();
-        pendingReps = 0;
-        repsValueText.setText("0");
-        strengthWeightInput.setText("");
-        persistSessionQuietly(activeSession);
-        statusText.setText("运动已开始，等待 HR40 心率数据...");
-        updateAllUi();
-    }
-
     private void finishWorkoutAndExport() {
         if (activeSession == null) {
             showToast("当前没有正在进行的运动");
@@ -344,7 +350,7 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         persistSessionQuietly(activeSession);
         lastCompletedSession = activeSession;
         activeSession = null;
-        updateAllUi();
+        updateWorkoutUi();
         exportSession(lastCompletedSession);
     }
 
@@ -380,51 +386,69 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
     }
 
     private void showProfileDialog(boolean cancellable) {
-        LinearLayout form = new LinearLayout(this);
-        form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(32, 8, 32, 0);
+        LinearLayout form = verticalLayout();
+        form.setPadding(dp(8), dp(4), dp(8), 0);
 
-        EditText nameInput = input("姓名或昵称", InputType.TYPE_CLASS_TEXT);
-        EditText heightInput = input("身高 cm", InputType.TYPE_CLASS_NUMBER);
-        EditText weightInput = input("体重 kg", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        EditText ageInput = input("年龄", InputType.TYPE_CLASS_NUMBER);
-        RadioGroup sexGroup = new RadioGroup(this);
-        sexGroup.setOrientation(RadioGroup.HORIZONTAL);
-        RadioButton male = new RadioButton(this);
-        male.setText("男");
-        male.setId(View.generateViewId());
-        RadioButton female = new RadioButton(this);
-        female.setText("女");
-        female.setId(View.generateViewId());
-        sexGroup.addView(male);
-        sexGroup.addView(female);
+        TextInputLayout nameLayout = inputLayout("姓名或昵称");
+        TextInputEditText nameInput = new TextInputEditText(this);
+        nameLayout.addView(nameInput);
+        TextInputLayout heightLayout = inputLayout("身高 cm");
+        TextInputEditText heightInput = new TextInputEditText(this);
+        heightInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        heightLayout.addView(heightInput);
+        TextInputLayout weightLayout = inputLayout("体重 kg");
+        TextInputEditText weightInput = new TextInputEditText(this);
+        weightInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        weightLayout.addView(weightInput);
+        TextInputLayout ageLayout = inputLayout("年龄");
+        TextInputEditText ageInput = new TextInputEditText(this);
+        ageInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        ageLayout.addView(ageInput);
 
+        LinearLayout sexRow = new LinearLayout(this);
+        sexRow.setOrientation(LinearLayout.HORIZONTAL);
+        MaterialButton maleButton = outlinedButton("男");
+        MaterialButton femaleButton = outlinedButton("女");
+        sexRow.addView(maleButton, weighted());
+        sexRow.addView(femaleButton, weighted());
+
+        final boolean[] femaleSelected = {false};
         if (profile != null) {
             nameInput.setText(profile.name);
             heightInput.setText(String.valueOf(profile.heightCm));
             weightInput.setText(String.format(Locale.US, "%.1f", profile.weightKg));
             ageInput.setText(String.valueOf(profile.age));
-            sexGroup.check(UserProfile.SEX_FEMALE.equals(profile.sex) ? female.getId() : male.getId());
-        } else {
-            sexGroup.check(male.getId());
+            femaleSelected[0] = UserProfile.SEX_FEMALE.equals(profile.sex);
         }
+        styleSexButton(maleButton, !femaleSelected[0]);
+        styleSexButton(femaleButton, femaleSelected[0]);
+        maleButton.setOnClickListener(v -> {
+            femaleSelected[0] = false;
+            styleSexButton(maleButton, true);
+            styleSexButton(femaleButton, false);
+        });
+        femaleButton.setOnClickListener(v -> {
+            femaleSelected[0] = true;
+            styleSexButton(maleButton, false);
+            styleSexButton(femaleButton, true);
+        });
 
-        form.addView(nameInput);
-        form.addView(heightInput);
-        form.addView(weightInput);
-        form.addView(ageInput);
-        form.addView(sexGroup);
+        form.addView(nameLayout, matchWrap());
+        form.addView(heightLayout, matchWrap());
+        form.addView(weightLayout, matchWrap());
+        form.addView(ageLayout, matchWrap());
+        form.addView(sexRow, matchWrap());
 
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("首次使用请填写运动人员资料")
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+                .setTitle("运动人员资料")
                 .setMessage("资料仅保存在当前设备，用于估算最大心率、心率区间和能量消耗。")
                 .setView(form)
                 .setCancelable(cancellable)
-                .setPositiveButton("保存", null)
-                .create();
-        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+                .setPositiveButton("保存", null);
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             try {
-                String name = nameInput.getText().toString().trim();
+                String name = nameInput.getText() == null ? "" : nameInput.getText().toString().trim();
                 int height = Integer.parseInt(heightInput.getText().toString().trim());
                 double weight = Double.parseDouble(weightInput.getText().toString().trim());
                 int age = Integer.parseInt(ageInput.getText().toString().trim());
@@ -432,12 +456,9 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
                     showToast("请填写合理的姓名、身高、体重和年龄");
                     return;
                 }
-                String sex = sexGroup.getCheckedRadioButtonId() == female.getId()
-                        ? UserProfile.SEX_FEMALE
-                        : UserProfile.SEX_MALE;
+                String sex = femaleSelected[0] ? UserProfile.SEX_FEMALE : UserProfile.SEX_MALE;
                 profile = new UserProfile(name, height, weight, age, sex, System.currentTimeMillis());
                 ProfileStore.save(this, profile);
-                updateProfileUi();
                 dialog.dismiss();
             } catch (NumberFormatException | JSONException e) {
                 showToast("保存资料失败，请检查输入");
@@ -465,79 +486,37 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         }
     }
 
-    private void updateAllUi() {
-        updateProfileUi();
-        updateWorkoutUi();
-    }
-
-    private void updateProfileUi() {
-        if (profile == null) {
-            profileText.setText("运动人员资料: 未填写");
-            return;
-        }
-        String sex = UserProfile.SEX_FEMALE.equals(profile.sex) ? "女" : "男";
-        profileText.setText("运动人员资料\n"
-                + "姓名: " + profile.name + "\n"
-                + "性别: " + sex + "\n"
-                + "身高: " + profile.heightCm + " cm\n"
-                + "体重: " + profile.weightKg + " kg\n"
-                + "年龄: " + profile.age + "\n"
-                + "估算最大心率: " + profile.estimatedMaxHeartRate() + " bpm");
-    }
-
     private void updateWorkoutUi() {
         WorkoutSession displaySession = activeSession != null ? activeSession : lastCompletedSession;
         startButton.setEnabled(activeSession == null);
         endButton.setEnabled(activeSession != null);
         exportButton.setEnabled(displaySession != null
                 && (!displaySession.samples().isEmpty() || !displaySession.strengthSets().isEmpty()));
-        if (activeSession == null) {
-            durationText.setText("00:00");
-        } else {
+
+        boolean inWorkout = activeSession != null;
+        durationSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
+        if (inWorkout) {
             durationText.setText(formatDuration(activeSession.durationMillis()));
         }
 
-        if (displaySession == null) {
-            workoutText.setText("运动记录: 尚未开始");
-            statsText.setText("");
-            strengthLogText.setText("");
-            return;
+        boolean showStrength = inWorkout
+                && WorkoutSession.TYPE_STRENGTH.equals(activeSession.workoutType);
+        strengthPanel.setVisibility(showStrength ? View.VISIBLE : View.GONE);
+        if (showStrength) {
+            updateStrengthLog(activeSession);
         }
-
-        updateStrengthLog(displaySession);
-
-        WorkoutStats stats = WorkoutStats.calculate(profile, displaySession);
-        String state = displaySession.isActive() ? "进行中" : "已结束";
-        workoutText.setText("运动记录: " + state + "\n"
-                + "时长: " + formatDuration(displaySession.durationMillis()) + "\n"
-                + "采样点: " + stats.sampleCount + "\n"
-                + "最近心率: " + (latestSample == null ? "--" : latestSample.bpm) + " bpm");
-
-        StringBuilder builder = new StringBuilder();
-        builder.append("运动统计\n")
-                .append("平均心率: ").append(stats.avgBpm).append(" bpm\n")
-                .append("最高心率: ").append(stats.maxBpm).append(" bpm\n")
-                .append("最低心率: ").append(stats.minBpm).append(" bpm\n")
-                .append("估算消耗: ").append(String.format(Locale.US, "%.1f kcal", stats.calories)).append("\n")
-                .append("心率区间:\n");
-        for (int i = 0; i < WorkoutStats.ZONE_LABELS.length; i++) {
-            builder.append(" - ")
-                    .append(WorkoutStats.ZONE_LABELS[i])
-                    .append(": ")
-                    .append(formatDuration(stats.zoneMillis[i]))
-                    .append("\n");
-        }
-        statsText.setText(builder.toString());
     }
 
-
-    private Button createRepsButton(String labelText, int delta) {
-        Button button = new Button(this);
-        button.setText(labelText);
-        button.setAllCaps(false);
-        button.setOnClickListener(view -> adjustPendingReps(delta));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        params.setMargins(4, 0, 4, 0);
+    private MaterialButton repButton(String labelText, int delta) {
+        MaterialButton button = outlinedButton(labelText);
+        button.setMinWidth(0);
+        button.setMinimumWidth(dp(72));
+        button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        button.setOnClickListener(v -> adjustPendingReps(delta));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(dp(4), dp(4), dp(4), dp(4));
         button.setLayoutParams(params);
         return button;
     }
@@ -545,6 +524,18 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
     private void adjustPendingReps(int delta) {
         pendingReps = Math.max(0, pendingReps + delta);
         repsValueText.setText(String.valueOf(pendingReps));
+    }
+
+    private void toggleWeightUnit() {
+        String next = StrengthSet.UNIT_KG.equals(ExerciseStore.loadWeightUnit(this))
+                ? StrengthSet.UNIT_LB
+                : StrengthSet.UNIT_KG;
+        ExerciseStore.saveWeightUnit(this, next);
+        unitToggleButton.setText(currentWeightUnitLabel());
+    }
+
+    private String currentWeightUnitLabel() {
+        return ExerciseStore.loadWeightUnit(this);
     }
 
     private void reloadExerciseNames() {
@@ -563,33 +554,89 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         }
     }
 
-    private void showAddExerciseDialog() {
-        EditText nameInput = input("动作名称", InputType.TYPE_CLASS_TEXT);
-        new AlertDialog.Builder(this)
-                .setTitle("添加训练动作")
-                .setMessage("动作名称会保存在本机，下次启动仍可选择。")
-                .setView(nameInput)
-                .setPositiveButton("保存", (dialog, which) -> {
-                    String name = nameInput.getText().toString().trim();
-                    if (name.isEmpty()) {
-                        showToast("请输入动作名称");
-                        return;
+    private void showExerciseManagementDialog() {
+        ScrollView scrollView = new ScrollView(this);
+        LinearLayout container = verticalLayout();
+        container.setPadding(dp(4), dp(4), dp(4), dp(4));
+        scrollView.addView(container);
+
+        TextInputLayout addLayout = inputLayout("新动作名称");
+        TextInputEditText addInput = new TextInputEditText(this);
+        addLayout.addView(addInput);
+        container.addView(addLayout, matchWrap());
+
+        LinearLayout listContainer = verticalLayout();
+        container.addView(listContainer, matchWrap());
+
+        final Runnable[] refreshHolder = new Runnable[1];
+        refreshHolder[0] = () -> {
+            listContainer.removeAllViews();
+            reloadExerciseNames();
+            if (exerciseNames.isEmpty()) {
+                TextView empty = textView("暂无动作，请先添加。");
+                empty.setTextColor(Color.DKGRAY);
+                listContainer.addView(empty, matchWrap());
+                return;
+            }
+            for (String name : new ArrayList<>(exerciseNames)) {
+                MaterialCardView rowCard = card();
+                rowCard.setCardElevation(0f);
+                LinearLayout row = new LinearLayout(MainActivity.this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                TextView nameView = textView(name);
+                nameView.setLayoutParams(weighted());
+                MaterialButton deleteButton = outlinedButton("删除");
+                deleteButton.setOnClickListener(v -> {
+                    new MaterialAlertDialogBuilder(MainActivity.this)
+                            .setTitle("删除动作")
+                            .setMessage("确定删除 \"" + name + "\" 吗？")
+                            .setPositiveButton("删除", (d, w) -> {
+                                try {
+                                    ExerciseStore.deleteExercise(MainActivity.this, name);
+                                    refreshHolder[0].run();
+                                } catch (IOException | JSONException e) {
+                                    showToast("删除失败: " + e.getMessage());
+                                }
+                            })
+                            .setNegativeButton("取消", null)
+                            .show();
+                });
+                row.addView(nameView);
+                row.addView(deleteButton, wrapContent());
+                rowCard.addView(row);
+                listContainer.addView(rowCard, matchWrap());
+            }
+        };
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+                .setTitle("动作管理")
+                .setView(scrollView)
+                .setPositiveButton("添加动作", null)
+                .setNegativeButton("关闭", null);
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String name = addInput.getText() == null ? "" : addInput.getText().toString().trim();
+            if (name.isEmpty()) {
+                showToast("请输入动作名称");
+                return;
+            }
+            try {
+                ExerciseStore.addExercise(this, name);
+                addInput.setText("");
+                refreshHolder[0].run();
+                for (int i = 0; i < exerciseNames.size(); i++) {
+                    if (exerciseNames.get(i).equalsIgnoreCase(name)) {
+                        exerciseSpinner.setSelection(i);
+                        break;
                     }
-                    try {
-                        ExerciseStore.addExercise(this, name);
-                        reloadExerciseNames();
-                        for (int i = 0; i < exerciseNames.size(); i++) {
-                            if (exerciseNames.get(i).equalsIgnoreCase(name)) {
-                                exerciseSpinner.setSelection(i);
-                                break;
-                            }
-                        }
-                    } catch (IOException | JSONException e) {
-                        showToast("保存动作失败: " + e.getMessage());
-                    }
-                })
-                .setNegativeButton("取消", null)
-                .show();
+                }
+            } catch (IOException | JSONException e) {
+                showToast("添加失败: " + e.getMessage());
+            }
+        }));
+        refreshHolder[0].run();
+        dialog.show();
     }
 
     private void recordStrengthSet() {
@@ -597,8 +644,12 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
             showToast("请先开始运动");
             return;
         }
+        if (!WorkoutSession.TYPE_STRENGTH.equals(activeSession.workoutType)) {
+            showToast("当前不是力量训练");
+            return;
+        }
         if (exerciseNames.isEmpty()) {
-            showToast("请先添加训练动作");
+            showToast("请先在动作管理中添加训练动作");
             return;
         }
         String exerciseName = (String) exerciseSpinner.getSelectedItem();
@@ -639,10 +690,10 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
     private void updateStrengthLog(WorkoutSession session) {
         List<StrengthSet> sets = session.strengthSets();
         if (sets.isEmpty()) {
-            strengthLogText.setText("力量训练记录: 暂无");
+            strengthLogText.setText("已记录组数: 0");
             return;
         }
-        StringBuilder builder = new StringBuilder("力量训练记录\n");
+        StringBuilder builder = new StringBuilder("已记录组数: " + sets.size() + "\n");
         int index = 1;
         for (StrengthSet set : sets) {
             builder.append(index++)
@@ -650,7 +701,7 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
                     .append(set.exerciseName)
                     .append("  ")
                     .append(set.displayWeight())
-                    .append("  x")
+                    .append(" x")
                     .append(set.reps)
                     .append("\n");
         }
@@ -673,34 +724,79 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         return new String[]{Manifest.permission.ACCESS_FINE_LOCATION};
     }
 
-    private TextView label(String text) {
-        TextView view = new TextView(this);
-        view.setText(text);
-        view.setTextSize(15f);
-        view.setTextColor(Color.BLACK);
-        view.setPadding(0, 12, 0, 12);
-        return view;
+    private MaterialCardView card() {
+        MaterialCardView card = new MaterialCardView(this);
+        card.setRadius(dp(16));
+        card.setCardElevation(dp(2));
+        card.setUseCompatPadding(true);
+        card.setContentPadding(dp(16), dp(16), dp(16), dp(16));
+        LinearLayout.LayoutParams params = matchWrap();
+        params.setMargins(0, dp(8), 0, dp(8));
+        card.setLayoutParams(params);
+        return card;
     }
 
-    private Button button(String text) {
-        Button button = new Button(this);
+    private MaterialButton materialButton(String text, View.OnClickListener listener) {
+        MaterialButton button = new MaterialButton(this);
         button.setText(text);
+        button.setAllCaps(false);
+        button.setOnClickListener(listener);
         return button;
     }
 
-    private EditText input(String hint, int inputType) {
-        EditText editText = new EditText(this);
-        editText.setHint(hint);
-        editText.setInputType(inputType);
-        return editText;
+    private MaterialButton outlinedButton(String text) {
+        MaterialButton button = new MaterialButton(
+                this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(text);
+        button.setAllCaps(false);
+        return button;
+    }
+
+    private TextInputLayout inputLayout(String hint) {
+        TextInputLayout layout = new TextInputLayout(
+                this, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+        layout.setHint(hint);
+        return layout;
+    }
+
+    private TextView textView(String text) {
+        TextView view = new TextView(this);
+        view.setText(text);
+        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f);
+        view.setTextColor(Color.BLACK);
+        view.setPadding(0, dp(6), 0, dp(6));
+        return view;
+    }
+
+    private LinearLayout verticalLayout() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        return layout;
     }
 
     private LinearLayout.LayoutParams matchWrap() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+        return new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(0, 6, 0, 6);
-        return params;
+    }
+
+    private LinearLayout.LayoutParams wrapContent() {
+        return new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+    }
+
+    private LinearLayout.LayoutParams weighted() {
+        return new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+    }
+
+    private void styleSexButton(MaterialButton button, boolean selected) {
+        button.setStrokeColorResource(selected ? R.color.md_primary : android.R.color.darker_gray);
+        button.setTextColor(getColor(selected ? R.color.md_primary : android.R.color.darker_gray));
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void showToast(String message) {

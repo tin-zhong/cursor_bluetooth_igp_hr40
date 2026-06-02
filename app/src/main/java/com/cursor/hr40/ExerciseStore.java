@@ -96,6 +96,21 @@ public final class ExerciseStore {
         }
     }
 
+    public static void deleteExercise(Context context, String exerciseName) throws IOException, JSONException {
+        List<String> exercises = loadExercises(context);
+        String trimmed = exerciseName == null ? "" : exerciseName.trim();
+        if (trimmed.isEmpty()) {
+            return;
+        }
+        for (int i = exercises.size() - 1; i >= 0; i--) {
+            if (exercises.get(i).equalsIgnoreCase(trimmed)) {
+                exercises.remove(i);
+                break;
+            }
+        }
+        saveExercises(context, exercises);
+    }
+
     public static String loadWeightUnit(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         return prefs.getString(KEY_WEIGHT_UNIT, StrengthSet.UNIT_KG);
