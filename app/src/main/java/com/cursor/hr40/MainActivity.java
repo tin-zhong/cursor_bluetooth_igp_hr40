@@ -2,6 +2,7 @@ package com.cursor.hr40;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
@@ -36,12 +37,22 @@ import org.json.JSONException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import com.cursor.hr40.db.HeartRateSampleEntity;
+import com.cursor.hr40.db.StrengthSetEntity;
+import com.cursor.hr40.db.WorkoutDao;
+import com.cursor.hr40.db.WorkoutDatabase;
+import com.cursor.hr40.db.WorkoutRecordEntity;
+import com.cursor.hr40.db.WorkoutWithDetails;
+
 public final class MainActivity extends AppCompatActivity implements BleHeartRateManager.Listener {
     private static final int REQUEST_BLE_PERMISSIONS = 1001;
+    private static final String PREFS_META = "app_meta";
+    private static final String KEY_LAST_WEIGHT_PROMPT_WEEK = "last_weight_prompt_week";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -62,6 +73,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private MaterialButton startButton;
     private MaterialButton endButton;
     private MaterialButton exportButton;
+    private MaterialButton rawExportButton;
     private MaterialCardView strengthPanel;
     private Spinner exerciseSpinner;
     private ArrayAdapter<String> exerciseAdapter;
@@ -71,6 +83,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private TextView repsValueText;
     private TextView strengthLogText;
     private int pendingReps;
+    private WorkoutDatabase workoutDatabase;
 
     private final Runnable ticker = new Runnable() {
         @Override
@@ -84,6 +97,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         profile = ProfileStore.load(this);
+        workoutDatabase = WorkoutDatabase.getInstance(this);
         heartRateManager = new BleHeartRateManager(this, this);
         buildUi();
         reloadExerciseNames();
@@ -91,6 +105,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         updateWorkoutUi();
         if (profile == null) {
             showProfileDialog(false);
+        } else if (shouldForceWeeklyWeightUpdate()) {
+            showWeeklyWeightDialog();
         }
         handler.post(ticker);
     }
@@ -191,7 +207,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v3.0.0");
+        title.setText("HR40 离线运动监测 v3.1.0");
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -273,6 +289,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
         exportButton = materialButton("导出运动记录 PDF", v -> showExportSessionDialog());
         root.addView(exportButton, matchWrap());
+
+        rawExportButton = materialButton("导出原始训练数据(JSON)", v -> exportRawWorkoutData());
+        root.addView(rawExportButton, matchWrap());
 
         root.addView(materialButton("动作管理", v -> showExerciseManagementDialog()), matchWrap());
         root.addView(materialButton("编辑运动人员资料", v -> showProfileDialog(true)), matchWrap());
@@ -420,6 +439,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         }
         activeSession.finish();
         persistSessionQuietly(activeSession);
+        persistSessionToRoom(activeSession);
         lastCompletedSession = activeSession;
         activeSession = null;
         updateWorkoutUi();
@@ -541,11 +561,79 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                 String sex = femaleSelected[0] ? UserProfile.SEX_FEMALE : UserProfile.SEX_MALE;
                 profile = new UserProfile(name, height, weight, age, sex, System.currentTimeMillis());
                 ProfileStore.save(this, profile);
+                markWeightPromptHandledForCurrentWeek();
                 dialog.dismiss();
             } catch (NumberFormatException | JSONException e) {
                 showToast("保存资料失败，请检查输入");
             }
         }));
+        dialog.show();
+    }
+
+    private boolean shouldForceWeeklyWeightUpdate() {
+        Calendar calendar = Calendar.getInstance();
+        if (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) {
+            return false;
+        }
+        int currentWeek = calendar.get(Calendar.YEAR) * 100 + calendar.get(Calendar.WEEK_OF_YEAR);
+        SharedPreferences prefs = getSharedPreferences(PREFS_META, MODE_PRIVATE);
+        int lastPromptWeek = prefs.getInt(KEY_LAST_WEIGHT_PROMPT_WEEK, -1);
+        return lastPromptWeek != currentWeek;
+    }
+
+    private void markWeightPromptHandledForCurrentWeek() {
+        Calendar calendar = Calendar.getInstance();
+        int currentWeek = calendar.get(Calendar.YEAR) * 100 + calendar.get(Calendar.WEEK_OF_YEAR);
+        getSharedPreferences(PREFS_META, MODE_PRIVATE)
+                .edit()
+                .putInt(KEY_LAST_WEIGHT_PROMPT_WEEK, currentWeek)
+                .apply();
+    }
+
+    private void showWeeklyWeightDialog() {
+        if (profile == null) {
+            return;
+        }
+        LinearLayout form = verticalLayout();
+        form.setPadding(dp(8), dp(4), dp(8), 0);
+
+        TextInputLayout weightLayout = inputLayout("本周体重 kg");
+        TextInputEditText weightInput = new TextInputEditText(this);
+        weightInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        weightInput.setText(String.format(Locale.US, "%.1f", profile.weightKg));
+        weightLayout.addView(weightInput);
+        form.addView(weightLayout, matchWrap());
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+                .setTitle("每周体重更新")
+                .setMessage("周一首次打开需先更新体重，以便本周消耗估算更准确。")
+                .setView(form)
+                .setCancelable(false)
+                .setPositiveButton("保存", null);
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.setOnShowListener(d -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    try {
+                        double weight = Double.parseDouble(weightInput.getText().toString().trim());
+                        if (weight < 20 || weight > 250) {
+                            showToast("请填写合理的体重");
+                            return;
+                        }
+                        profile = new UserProfile(
+                                profile.name,
+                                profile.heightCm,
+                                weight,
+                                profile.age,
+                                profile.sex,
+                                profile.createdAtMillis);
+                        ProfileStore.save(this, profile);
+                        markWeightPromptHandledForCurrentWeek();
+                        dialog.dismiss();
+                    } catch (NumberFormatException | JSONException e) {
+                        showToast("保存体重失败，请检查输入");
+                    }
+                }));
         dialog.show();
     }
 
@@ -568,6 +656,69 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         }
     }
 
+    private void persistSessionToRoom(WorkoutSession session) {
+        WorkoutDao dao = workoutDatabase.workoutDao();
+
+        WorkoutRecordEntity workout = new WorkoutRecordEntity();
+        workout.id = session.id;
+        workout.startMillis = session.startMillis;
+        workout.endMillis = session.endMillis;
+        workout.workoutType = session.workoutType;
+        dao.upsertWorkout(workout);
+
+        dao.deleteHeartRateSamplesBySession(session.id);
+        List<HeartRateSampleEntity> sampleEntities = new ArrayList<>();
+        for (HeartRateSample sample : session.samples()) {
+            HeartRateSampleEntity entity = new HeartRateSampleEntity();
+            entity.sessionId = session.id;
+            entity.timestampMillis = sample.timestampMillis;
+            entity.bpm = sample.bpm;
+            entity.contactSupported = sample.contactSupported;
+            entity.contactDetected = sample.contactDetected;
+            entity.energyExpendedKj = sample.energyExpendedKj;
+            entity.rrIntervalCount = sample.rrIntervalCount;
+            sampleEntities.add(entity);
+        }
+        if (!sampleEntities.isEmpty()) {
+            dao.insertHeartRateSamples(sampleEntities);
+        }
+
+        dao.deleteStrengthSetsBySession(session.id);
+        List<StrengthSetEntity> setEntities = new ArrayList<>();
+        for (StrengthSet set : session.strengthSets()) {
+            StrengthSetEntity entity = new StrengthSetEntity();
+            entity.sessionId = session.id;
+            entity.exerciseName = set.exerciseName;
+            entity.weight = set.weight;
+            entity.weightUnit = set.weightUnit;
+            entity.reps = set.reps;
+            entity.timestampMillis = set.timestampMillis;
+            setEntities.add(entity);
+        }
+        if (!setEntities.isEmpty()) {
+            dao.insertStrengthSets(setEntities);
+        }
+    }
+
+    private void exportRawWorkoutData() {
+        List<WorkoutWithDetails> details = workoutDatabase.workoutDao().loadAllWorkoutsWithDetails();
+        if (details.isEmpty()) {
+            showToast("数据库暂无可导出的训练数据");
+            return;
+        }
+        try {
+            Uri uri = RawDataExporter.export(this, details);
+            showToast("原始数据已导出");
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType("application/json");
+            share.putExtra(Intent.EXTRA_STREAM, uri);
+            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(share, "分享 HR40 原始训练数据"));
+        } catch (IOException e) {
+            showToast("导出原始数据失败: " + e.getMessage());
+        }
+    }
+
     private String formatSessionLabel(WorkoutSession session) {
         String type = WorkoutSession.TYPE_STRENGTH.equals(session.workoutType) ? "力量" : "有氧";
         String start = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
@@ -579,6 +730,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         startButton.setEnabled(activeSession == null);
         endButton.setEnabled(activeSession != null);
         exportButton.setEnabled(true);
+        rawExportButton.setEnabled(true);
 
         boolean inWorkout = activeSession != null;
         durationSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
