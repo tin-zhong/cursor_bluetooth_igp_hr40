@@ -49,8 +49,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 
 public final class MainActivity extends AppCompatActivity implements BleHeartRateManager.Listener {
@@ -778,54 +780,77 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
             showToast("暂无导出文件");
             return;
         }
-        List<String> labels = new ArrayList<>();
-        for (ExportedFileItem item : files) {
-            labels.add(item.name + " (" + item.mimeType + ")");
+        String[] labels = new String[files.size()];
+        boolean[] checked = new boolean[files.size()];
+        for (int i = 0; i < files.size(); i++) {
+            ExportedFileItem item = files.get(i);
+            labels[i] = item.name + " (" + item.mimeType + ")";
+            checked[i] = false;
         }
+        Set<Integer> selected = new HashSet<>();
         new MaterialAlertDialogBuilder(this)
-                .setTitle("导出文件管理")
-                .setItems(labels.toArray(new String[0]), (dialog, which) -> showFileActionsDialog(files.get(which)))
-                .show();
-    }
-
-    private void showFileActionsDialog(ExportedFileItem item) {
-        String[] actions = new String[]{"分享", "删除", "移动到归档目录"};
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(item.name)
-                .setItems(actions, (dialog, which) -> {
-                    if (which == 0) {
-                        shareExportedFile(item);
-                    } else if (which == 1) {
-                        deleteExportedFile(item);
+                .setTitle("导出文件管理（可多选）")
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> {
+                    if (isChecked) {
+                        selected.add(which);
                     } else {
-                        moveExportedFile(item);
+                        selected.remove(which);
                     }
                 })
+                .setPositiveButton("批量移动", (dialog, which) -> {
+                    if (selected.isEmpty()) {
+                        showToast("请先选择文件");
+                        return;
+                    }
+                    List<ExportedFileItem> targets = new ArrayList<>();
+                    for (Integer index : selected) {
+                        targets.add(files.get(index));
+                    }
+                    int moved = moveExportedFiles(targets);
+                    showToast("已移动 " + moved + " 个文件");
+                })
+                .setNeutralButton("批量删除", (dialog, which) -> {
+                    if (selected.isEmpty()) {
+                        showToast("请先选择文件");
+                        return;
+                    }
+                    List<ExportedFileItem> targets = new ArrayList<>();
+                    for (Integer index : selected) {
+                        targets.add(files.get(index));
+                    }
+                    int deleted = deleteExportedFiles(targets);
+                    showToast("已删除 " + deleted + " 个文件");
+                })
+                .setNegativeButton("取消", null)
                 .show();
     }
 
-    private void shareExportedFile(ExportedFileItem item) {
-        Intent share = new Intent(Intent.ACTION_SEND);
-        share.setType(item.mimeType == null ? "*/*" : item.mimeType);
-        share.putExtra(Intent.EXTRA_STREAM, item.uri);
-        share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(Intent.createChooser(share, "分享导出文件"));
+    private int deleteExportedFiles(List<ExportedFileItem> items) {
+        int count = 0;
+        for (ExportedFileItem item : items) {
+            int deleted = getContentResolver().delete(item.uri, null, null);
+            if (deleted > 0) {
+                count++;
+            }
+        }
+        return count;
     }
 
-    private void deleteExportedFile(ExportedFileItem item) {
-        int deleted = getContentResolver().delete(item.uri, null, null);
-        showToast(deleted > 0 ? "文件已删除" : "删除失败");
-    }
-
-    private void moveExportedFile(ExportedFileItem item) {
+    private int moveExportedFiles(List<ExportedFileItem> items) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             showToast("当前系统不支持直接移动，请使用文件管理器操作");
-            return;
+            return 0;
         }
-        ContentValues values = new ContentValues();
-        values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/HR40_Archive");
-        int updated = getContentResolver().update(item.uri, values, null, null);
-        showToast(updated > 0 ? "已移动到 Downloads/HR40_Archive" : "移动失败");
+        int count = 0;
+        for (ExportedFileItem item : items) {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/HR40_Archive");
+            int updated = getContentResolver().update(item.uri, values, null, null);
+            if (updated > 0) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private List<ExportedFileItem> loadExportedFiles() {
@@ -866,37 +891,43 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         SharedPreferences prefs = getSharedPreferences(PREFS_META, MODE_PRIVATE);
         boolean autoEnabled = prefs.getBoolean(KEY_AUTO_CLEANUP_ENABLED, false);
         int currentDays = prefs.getInt(KEY_RETENTION_DAYS, 30);
-        int checked = 1;
-        for (int i = 0; i < retentionOptions.length; i++) {
-            if (retentionOptions[i] == currentDays) {
-                checked = i;
-                break;
-            }
-        }
-        final boolean[] auto = new boolean[]{autoEnabled};
-        final int[] selectedDays = new int[]{retentionOptions[checked]};
+
+        String[] actions = new String[]{
+                "自动清理：" + (autoEnabled ? "已开启" : "已关闭") + "（点击切换）",
+                "保留周期：" + currentDays + " 天（点击修改）",
+                "立即清理旧数据"
+        };
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("历史数据管理")
-                .setMultiChoiceItems(new String[]{"启用自动清理"}, new boolean[]{autoEnabled}, (dialog, which, isChecked) -> auto[0] = isChecked)
-                .setSingleChoiceItems(retentionLabels, checked, (dialog, which) -> selectedDays[0] = retentionOptions[which])
-                .setNeutralButton("立即清理", (dialog, which) -> {
-                    int deleted = cleanupHistoryOlderThanDays(selectedDays[0]);
-                    showToast("已清理 " + deleted + " 条历史训练记录");
-                })
-                .setNegativeButton("取消", null)
-                .setPositiveButton("保存", (dialog, which) -> {
-                    prefs.edit()
-                            .putBoolean(KEY_AUTO_CLEANUP_ENABLED, auto[0])
-                            .putInt(KEY_RETENTION_DAYS, selectedDays[0])
-                            .apply();
-                    if (auto[0]) {
-                        int deleted = cleanupHistoryOlderThanDays(selectedDays[0]);
-                        showToast("已保存并清理 " + deleted + " 条历史记录");
+                .setItems(actions, (dialog, which) -> {
+                    if (which == 0) {
+                        boolean next = !autoEnabled;
+                        prefs.edit().putBoolean(KEY_AUTO_CLEANUP_ENABLED, next).apply();
+                        showToast(next ? "已开启自动清理" : "已关闭自动清理");
+                    } else if (which == 1) {
+                        int checked = 1;
+                        for (int i = 0; i < retentionOptions.length; i++) {
+                            if (retentionOptions[i] == currentDays) {
+                                checked = i;
+                                break;
+                            }
+                        }
+                        new MaterialAlertDialogBuilder(this)
+                                .setTitle("设置保留周期")
+                                .setSingleChoiceItems(retentionLabels, checked, (d, selected) -> {
+                                    prefs.edit().putInt(KEY_RETENTION_DAYS, retentionOptions[selected]).apply();
+                                    showToast("保留周期已设置为 " + retentionOptions[selected] + " 天");
+                                    d.dismiss();
+                                })
+                                .setNegativeButton("取消", null)
+                                .show();
                     } else {
-                        showToast("历史清理设置已保存");
+                        int deleted = cleanupHistoryOlderThanDays(currentDays);
+                        showToast("已清理 " + deleted + " 条历史训练记录");
                     }
                 })
+                .setNegativeButton("关闭", null)
                 .show();
     }
 
