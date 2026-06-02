@@ -31,4 +31,7 @@ public interface WorkoutDao {
 
     @Query("DELETE FROM workout_records WHERE startMillis < :cutoffMillis")
     int deleteWorkoutsOlderThan(long cutoffMillis);
+
+    @Query("DELETE FROM workout_records WHERE id IN (:sessionIds)")
+    int deleteWorkoutsByIds(List<String> sessionIds);
 }

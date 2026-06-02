@@ -117,6 +117,14 @@ public final class WorkoutRepository {
         return WorkoutDatabase.getInstance(context).workoutDao().deleteWorkoutsOlderThan(cutoffMillis);
     }
 
+    public static int deleteWorkoutsByIds(Context context, List<String> sessionIds) {
+        migrateLegacyJsonIfNeeded(context);
+        if (sessionIds == null || sessionIds.isEmpty()) {
+            return 0;
+        }
+        return WorkoutDatabase.getInstance(context).workoutDao().deleteWorkoutsByIds(sessionIds);
+    }
+
     public static List<WorkoutWithDetails> loadAllWithDetails(Context context) {
         migrateLegacyJsonIfNeeded(context);
         return WorkoutDatabase.getInstance(context).workoutDao().loadAllWorkoutsWithDetails();

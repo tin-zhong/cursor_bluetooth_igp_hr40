@@ -886,48 +886,82 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     private void showHistoryManageDialog() {
+        List<WorkoutSession> sessions = WorkoutRepository.loadAll(this);
+        if (sessions.isEmpty()) {
+            showToast("暂无历史训练记录");
+            return;
+        }
+        SharedPreferences prefs = getSharedPreferences(PREFS_META, MODE_PRIVATE);
+        boolean autoEnabled = prefs.getBoolean(KEY_AUTO_CLEANUP_ENABLED, false);
+        int currentDays = prefs.getInt(KEY_RETENTION_DAYS, 30);
+
+        String[] labels = new String[sessions.size()];
+        boolean[] checked = new boolean[sessions.size()];
+        for (int i = 0; i < sessions.size(); i++) {
+            labels[i] = formatSessionLabel(sessions.get(i));
+            checked[i] = false;
+        }
+        Set<Integer> selected = new HashSet<>();
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("历史数据管理")
+                .setMessage("自动清理：" + (autoEnabled ? "已开启" : "已关闭") + " | 保留周期：" + currentDays + " 天")
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> {
+                    if (isChecked) {
+                        selected.add(which);
+                    } else {
+                        selected.remove(which);
+                    }
+                })
+                .setPositiveButton("批量清理选中", (dialog, which) -> {
+                    if (selected.isEmpty()) {
+                        showToast("请先选择要清理的历史记录");
+                        return;
+                    }
+                    List<String> ids = new ArrayList<>();
+                    for (Integer index : selected) {
+                        ids.add(sessions.get(index).id);
+                    }
+                    int deleted = WorkoutRepository.deleteWorkoutsByIds(this, ids);
+                    lastCompletedSession = WorkoutRepository.loadLatest(this);
+                    updateWorkoutUi();
+                    showToast("已清理 " + deleted + " 条历史训练记录");
+                })
+                .setNeutralButton("自动清理设置", (dialog, which) -> showAutoCleanupSettingsDialog())
+                .setNegativeButton("关闭", null)
+                .show();
+    }
+
+    private void showAutoCleanupSettingsDialog() {
         final int[] retentionOptions = new int[]{7, 30, 90, 180, 365};
         final String[] retentionLabels = new String[]{"保留 1 周", "保留 1 个月", "保留 3 个月", "保留 6 个月", "保留 1 年"};
         SharedPreferences prefs = getSharedPreferences(PREFS_META, MODE_PRIVATE);
         boolean autoEnabled = prefs.getBoolean(KEY_AUTO_CLEANUP_ENABLED, false);
         int currentDays = prefs.getInt(KEY_RETENTION_DAYS, 30);
 
-        String[] actions = new String[]{
-                "自动清理：" + (autoEnabled ? "已开启" : "已关闭") + "（点击切换）",
-                "保留周期：" + currentDays + " 天（点击修改）",
-                "立即清理旧数据"
-        };
+        int checked = 1;
+        for (int i = 0; i < retentionOptions.length; i++) {
+            if (retentionOptions[i] == currentDays) {
+                checked = i;
+                break;
+            }
+        }
+        final boolean[] auto = new boolean[]{autoEnabled};
+        final int[] selectedDays = new int[]{currentDays};
 
         new MaterialAlertDialogBuilder(this)
-                .setTitle("历史数据管理")
-                .setItems(actions, (dialog, which) -> {
-                    if (which == 0) {
-                        boolean next = !autoEnabled;
-                        prefs.edit().putBoolean(KEY_AUTO_CLEANUP_ENABLED, next).apply();
-                        showToast(next ? "已开启自动清理" : "已关闭自动清理");
-                    } else if (which == 1) {
-                        int checked = 1;
-                        for (int i = 0; i < retentionOptions.length; i++) {
-                            if (retentionOptions[i] == currentDays) {
-                                checked = i;
-                                break;
-                            }
-                        }
-                        new MaterialAlertDialogBuilder(this)
-                                .setTitle("设置保留周期")
-                                .setSingleChoiceItems(retentionLabels, checked, (d, selected) -> {
-                                    prefs.edit().putInt(KEY_RETENTION_DAYS, retentionOptions[selected]).apply();
-                                    showToast("保留周期已设置为 " + retentionOptions[selected] + " 天");
-                                    d.dismiss();
-                                })
-                                .setNegativeButton("取消", null)
-                                .show();
-                    } else {
-                        int deleted = cleanupHistoryOlderThanDays(currentDays);
-                        showToast("已清理 " + deleted + " 条历史训练记录");
-                    }
+                .setTitle("自动清理设置")
+                .setMessage("自动清理与保留周期")
+                .setMultiChoiceItems(new String[]{"启用自动清理（与保留周期同一策略）"}, new boolean[]{autoEnabled}, (dialog, which, isChecked) -> auto[0] = isChecked)
+                .setSingleChoiceItems(retentionLabels, checked, (dialog, which) -> selectedDays[0] = retentionOptions[which])
+                .setPositiveButton("保存", (dialog, which) -> {
+                    prefs.edit()
+                            .putBoolean(KEY_AUTO_CLEANUP_ENABLED, auto[0])
+                            .putInt(KEY_RETENTION_DAYS, selectedDays[0])
+                            .apply();
+                    showToast("自动清理设置已保存");
                 })
-                .setNegativeButton("关闭", null)
+                .setNegativeButton("取消", null)
                 .show();
     }
 
