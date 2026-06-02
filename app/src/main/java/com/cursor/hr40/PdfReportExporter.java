@@ -116,17 +116,28 @@ public final class PdfReportExporter {
         y = drawZones(canvas, paint, stats, session.durationMillis(), y);
 
         if (WorkoutSession.TYPE_STRENGTH.equals(session.workoutType) && !session.strengthSets().isEmpty()) {
-            if (y > PAGE_HEIGHT - 120) {
-                document.finishPage(page);
-                pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 2).create();
-                page = document.startPage(pageInfo);
-                canvas = page.getCanvas();
-                y = MARGIN;
+            int pageNumber = 2;
+            int nextSetIndex = 0;
+            while (nextSetIndex < session.strengthSets().size()) {
+                if (y > PAGE_HEIGHT - 120) {
+                    document.finishPage(page);
+                    pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber++).create();
+                    page = document.startPage(pageInfo);
+                    canvas = page.getCanvas();
+                    y = MARGIN;
+                }
+                y += 24;
+                drawSectionTitle(canvas, paint, "力量训练记录", y);
+                y += 18;
+                nextSetIndex = drawStrengthSetsPage(canvas, paint, session.strengthSets(), nextSetIndex, y);
+                if (nextSetIndex < session.strengthSets().size()) {
+                    document.finishPage(page);
+                    pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNumber++).create();
+                    page = document.startPage(pageInfo);
+                    canvas = page.getCanvas();
+                    y = MARGIN;
+                }
             }
-            y += 24;
-            drawSectionTitle(canvas, paint, "力量训练记录", y);
-            y += 18;
-            drawStrengthSets(canvas, paint, session.strengthSets(), y);
         }
 
         document.finishPage(page);
@@ -361,7 +372,12 @@ public final class PdfReportExporter {
         return y;
     }
 
-    private static void drawStrengthSets(Canvas canvas, Paint paint, List<StrengthSet> sets, int startY) {
+    private static int drawStrengthSetsPage(
+            Canvas canvas,
+            Paint paint,
+            List<StrengthSet> sets,
+            int startIndex,
+            int startY) {
         paint.setTextSize(10);
         paint.setColor(Color.BLACK);
         int y = startY;
@@ -375,18 +391,22 @@ public final class PdfReportExporter {
         canvas.drawLine(MARGIN, y, PAGE_WIDTH - MARGIN, y, paint);
         y += 12;
         paint.setColor(Color.BLACK);
-        int index = 1;
-        for (StrengthSet set : sets) {
-            canvas.drawText(String.valueOf(index++), MARGIN, y, paint);
+
+        int index = startIndex;
+        while (index < sets.size()) {
+            StrengthSet set = sets.get(index);
+            canvas.drawText(String.valueOf(index + 1), MARGIN, y, paint);
             canvas.drawText(truncate(set.exerciseName, 12), MARGIN + 36, y, paint);
             canvas.drawText(set.displayWeight(), MARGIN + 170, y, paint);
             canvas.drawText(String.valueOf(set.reps), MARGIN + 260, y, paint);
             canvas.drawText(dateTime(set.timestampMillis), MARGIN + 320, y, paint);
             y += 16;
+            index++;
             if (y > PAGE_HEIGHT - MARGIN) {
                 break;
             }
         }
+        return index;
     }
 
     private static String truncate(String value, int maxLength) {

@@ -34,7 +34,9 @@ import com.google.android.material.textfield.TextInputLayout;
 import org.json.JSONException;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -169,32 +171,27 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                 || status.contains("未连接");
     }
 
-    private void applySystemBarPadding(ScrollView scrollView, LinearLayout root) {
-        ViewCompat.setOnApplyWindowInsetsListener(scrollView, (view, windowInsets) -> {
+    private void applySystemBarPadding(View rootView) {
+        ViewCompat.setOnApplyWindowInsetsListener(rootView, (view, windowInsets) -> {
             Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-            root.setPadding(
-                    dp(20),
-                    insets.top + dp(20),
-                    dp(20),
-                    dp(24));
+            view.setPadding(0, insets.top + dp(16), 0, insets.bottom);
             return windowInsets;
         });
-        ViewCompat.requestApplyInsets(scrollView);
+        ViewCompat.requestApplyInsets(rootView);
     }
 
     private void buildUi() {
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.setFillViewport(true);
-        scrollView.setBackgroundColor(getColor(R.color.md_background));
+        LinearLayout screen = new LinearLayout(this);
+        screen.setOrientation(LinearLayout.VERTICAL);
+        screen.setBackgroundColor(getColor(R.color.md_background));
+        applySystemBarPadding(screen);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(20), dp(24), dp(20), dp(24));
-        applySystemBarPadding(scrollView, root);
-        scrollView.addView(root, matchWrap());
+        LinearLayout fixedSection = new LinearLayout(this);
+        fixedSection.setOrientation(LinearLayout.VERTICAL);
+        fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v2.1.4");
+        title.setText("HR40 离线运动监测 v2.2.0");
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -202,14 +199,14 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
         title.setTextColor(getColor(R.color.md_primary));
         title.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.addView(title, matchWrap());
+        fixedSection.addView(title, matchWrap());
 
         statusText = textView("未连接心率带");
         statusText.setGravity(Gravity.CENTER_HORIZONTAL);
         statusText.setTextColor(Color.DKGRAY);
         LinearLayout.LayoutParams statusParams = matchWrap();
         statusParams.bottomMargin = dp(12);
-        root.addView(statusText, statusParams);
+        fixedSection.addView(statusText, statusParams);
 
         MaterialCardView metricsCard = card();
         LinearLayout metricsContent = verticalLayout();
@@ -254,18 +251,27 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         bpmLabel.setGravity(Gravity.CENTER_HORIZONTAL);
         bpmLabel.setTextColor(Color.DKGRAY);
         metricsContent.addView(bpmLabel, matchWrap());
-        root.addView(metricsCard, matchWrap());
+        fixedSection.addView(metricsCard, matchWrap());
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.setBackgroundColor(getColor(R.color.md_background));
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(20), dp(8), dp(20), dp(24));
+        scrollView.addView(root, matchWrap());
 
         root.addView(materialButton("扫描并连接 HR40", v -> scanOrRequestPermissions()), matchWrap());
 
         startButton = materialButton("开始运动", v -> promptWorkoutType());
         root.addView(startButton, matchWrap());
 
-        endButton = materialButton("结束运动并导出 PDF", v -> finishWorkoutAndExport());
+        endButton = materialButton("结束运动", v -> finishWorkout());
         endButton.setEnabled(false);
         root.addView(endButton, matchWrap());
 
-        exportButton = materialButton("导出最近一次运动 PDF", v -> exportLastWorkout());
+        exportButton = materialButton("导出运动记录 PDF", v -> showExportSessionDialog());
         root.addView(exportButton, matchWrap());
 
         root.addView(materialButton("动作管理", v -> showExerciseManagementDialog()), matchWrap());
@@ -335,7 +341,14 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         strengthContent.addView(strengthLogText, matchWrap());
 
         root.addView(strengthPanel, matchWrap());
-        setContentView(scrollView);
+
+        screen.addView(fixedSection, matchWrap());
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f);
+        screen.addView(scrollView, scrollParams);
+        setContentView(screen);
     }
 
     private void promptWorkoutType() {
@@ -400,7 +413,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         }, 1200L);
     }
 
-    private void finishWorkoutAndExport() {
+    private void finishWorkout() {
         if (activeSession == null) {
             showToast("当前没有正在进行的运动");
             return;
@@ -410,24 +423,34 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         lastCompletedSession = activeSession;
         activeSession = null;
         updateWorkoutUi();
-        exportSession(lastCompletedSession);
+        showToast("运动已结束，可按需导出 PDF");
     }
 
-    private void exportLastWorkout() {
-        WorkoutSession session = lastCompletedSession;
-        if (session == null) {
-            try {
-                session = WorkoutRepository.loadLatest(this);
-            } catch (IOException e) {
-                showToast("读取最近运动失败: " + e.getMessage());
-                return;
-            }
+    private void showExportSessionDialog() {
+        List<WorkoutSession> sessions;
+        try {
+            sessions = WorkoutRepository.loadAll(this);
+        } catch (IOException e) {
+            showToast("读取运动记录失败: " + e.getMessage());
+            return;
         }
-        if (session == null || (session.samples().isEmpty() && session.strengthSets().isEmpty())) {
+        List<WorkoutSession> exportableSessions = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        for (WorkoutSession session : sessions) {
+            if (session.samples().isEmpty() && session.strengthSets().isEmpty()) {
+                continue;
+            }
+            exportableSessions.add(session);
+            labels.add(formatSessionLabel(session));
+        }
+        if (exportableSessions.isEmpty()) {
             showToast("暂无可导出的运动记录");
             return;
         }
-        exportSession(session);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("选择要导出的运动记录")
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> exportSession(exportableSessions.get(which)))
+                .show();
     }
 
     private void exportSession(WorkoutSession session) {
@@ -545,12 +568,17 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         }
     }
 
+    private String formatSessionLabel(WorkoutSession session) {
+        String type = WorkoutSession.TYPE_STRENGTH.equals(session.workoutType) ? "力量" : "有氧";
+        String start = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+                .format(new Date(session.startMillis));
+        return start + " | " + type + " | 时长 " + formatDuration(session.durationMillis());
+    }
+
     private void updateWorkoutUi() {
-        WorkoutSession displaySession = activeSession != null ? activeSession : lastCompletedSession;
         startButton.setEnabled(activeSession == null);
         endButton.setEnabled(activeSession != null);
-        exportButton.setEnabled(displaySession != null
-                && (!displaySession.samples().isEmpty() || !displaySession.strengthSets().isEmpty()));
+        exportButton.setEnabled(true);
 
         boolean inWorkout = activeSession != null;
         durationSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
