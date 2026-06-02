@@ -26,10 +26,16 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 为了便于平板测试，当前分支还提交了一份已构建的 Debug APK：
 
 ```text
-dist/hr40-offline-fitness-v3.3.2.apk
+dist/hr40-offline-fitness-v3.4.0.apk
 ```
 
 下载该 APK 到一加平板 2 Pro 后，允许“安装未知来源应用”即可安装测试。
+
+## v3.4.0 更新
+
+- 新增导出文件管理：可对已导出的 PDF/JSON 文件进行分享、删除、移动到归档目录
+- 原始训练数据(JSON)导出支持选择具体训练记录（不再只导出整体）
+- 新增历史数据管理：支持手动清理 + 自动定时清理（可配置保留周期）
 
 ## v3.3.2 更新
 
@@ -92,14 +98,14 @@ dist/hr40-offline-fitness-v3.3.2.apk
 - `y`：新增功能时 +1
 - `z`：仅页面/UI 调整时 +1
 
-当前版本：`3.3.2`
+当前版本：`3.4.0`
 - `x=3`：Keytel 算法增加“力量模式 0.88 修正系数”
 - `y=2`：训练记录全面切换为 Room 存储（含 JSON 迁移）
 - `z=0`：无单独 UI 版本变化
 
 ## 安装注意
 
-如果安装后界面没有变化，请先卸载旧版 App，再安装 `dist/hr40-offline-fitness-v3.3.2.apk`。
+如果安装后界面没有变化，请先卸载旧版 App，再安装 `dist/hr40-offline-fitness-v3.4.0.apk`。
 打开 App 后标题应显示 **HR40 离线运动监测 v3.2.0**。
 
 ## 权限

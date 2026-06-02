@@ -1,14 +1,20 @@
 package com.cursor.hr40;
 
 import android.Manifest;
+import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
@@ -21,6 +27,9 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.cursor.hr40.db.WorkoutRecordMapper;
+import com.cursor.hr40.db.WorkoutWithDetails;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
@@ -48,6 +57,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private static final int REQUEST_BLE_PERMISSIONS = 1001;
     private static final String PREFS_META = "app_meta";
     private static final String KEY_LAST_WEIGHT_PROMPT_WEEK = "last_weight_prompt_week";
+    private static final String KEY_AUTO_CLEANUP_ENABLED = "auto_cleanup_enabled";
+    private static final String KEY_RETENTION_DAYS = "retention_days";
+    private static final String KEY_LAST_AUTO_CLEANUP_DAY = "last_auto_cleanup_day";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -72,6 +84,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private MaterialButton rawExportButton;
     private MaterialButton exerciseManageButton;
     private MaterialButton editProfileButton;
+    private MaterialButton fileManageButton;
+    private MaterialButton historyManageButton;
     private MaterialCardView strengthPanel;
     private Spinner exerciseSpinner;
     private ArrayAdapter<String> exerciseAdapter;
@@ -89,6 +103,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         @Override
         public void run() {
             updateWorkoutUi();
+        runAutoHistoryCleanupIfNeeded();
             handler.postDelayed(this, 1000L);
         }
     };
@@ -97,7 +112,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         profile = ProfileStore.load(this);
-heartRateManager = new BleHeartRateManager(this, this);
+        heartRateManager = new BleHeartRateManager(this, this);
         buildUi();
         reloadExerciseNames();
         loadLatestWorkout();
@@ -208,7 +223,7 @@ heartRateManager = new BleHeartRateManager(this, this);
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v3.3.2");
+        title.setText("HR40 离线运动监测 v3.4.0");
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -299,6 +314,12 @@ heartRateManager = new BleHeartRateManager(this, this);
         root.addView(exerciseManageButton, matchWrap());
         editProfileButton = materialButton("编辑运动人员资料", v -> showProfileDialog(true));
         root.addView(editProfileButton, matchWrap());
+
+        fileManageButton = materialButton("导出文件管理", v -> showExportedFilesDialog());
+        root.addView(fileManageButton, matchWrap());
+
+        historyManageButton = materialButton("历史数据管理", v -> showHistoryManageDialog());
+        root.addView(historyManageButton, matchWrap());
 
         strengthPanel = card();
         strengthPanel.setVisibility(View.GONE);
@@ -709,13 +730,30 @@ heartRateManager = new BleHeartRateManager(this, this);
     }
 
     private void exportRawWorkoutData() {
-        List<com.cursor.hr40.db.WorkoutWithDetails> details = WorkoutRepository.loadAllWithDetails(this);
-        if (details.isEmpty()) {
+        List<WorkoutWithDetails> details = WorkoutRepository.loadAllWithDetails(this);
+        List<WorkoutWithDetails> exportable = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        for (WorkoutWithDetails item : details) {
+            WorkoutSession session = WorkoutRecordMapper.toSession(item);
+            if (session == null || (session.samples().isEmpty() && session.strengthSets().isEmpty())) {
+                continue;
+            }
+            exportable.add(item);
+            labels.add(formatSessionLabel(session));
+        }
+        if (exportable.isEmpty()) {
             showToast("数据库暂无可导出的训练数据");
             return;
         }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("选择要导出的原始数据")
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> exportRawSingle(exportable.get(which)))
+                .show();
+    }
+
+    private void exportRawSingle(WorkoutWithDetails details) {
         try {
-            Uri uri = RawDataExporter.export(this, details);
+            Uri uri = RawDataExporter.exportSingle(this, details);
             showToast("原始数据已导出");
             Intent share = new Intent(Intent.ACTION_SEND);
             share.setType("application/json");
@@ -725,6 +763,164 @@ heartRateManager = new BleHeartRateManager(this, this);
         } catch (IOException e) {
             showToast("导出原始数据失败: " + e.getMessage());
         }
+    }
+
+    private static final class ExportedFileItem {
+        Uri uri;
+        String name;
+        String mimeType;
+        String relativePath;
+    }
+
+    private void showExportedFilesDialog() {
+        List<ExportedFileItem> files = loadExportedFiles();
+        if (files.isEmpty()) {
+            showToast("暂无导出文件");
+            return;
+        }
+        List<String> labels = new ArrayList<>();
+        for (ExportedFileItem item : files) {
+            labels.add(item.name + " (" + item.mimeType + ")");
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("导出文件管理")
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> showFileActionsDialog(files.get(which)))
+                .show();
+    }
+
+    private void showFileActionsDialog(ExportedFileItem item) {
+        String[] actions = new String[]{"分享", "删除", "移动到归档目录"};
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(item.name)
+                .setItems(actions, (dialog, which) -> {
+                    if (which == 0) {
+                        shareExportedFile(item);
+                    } else if (which == 1) {
+                        deleteExportedFile(item);
+                    } else {
+                        moveExportedFile(item);
+                    }
+                })
+                .show();
+    }
+
+    private void shareExportedFile(ExportedFileItem item) {
+        Intent share = new Intent(Intent.ACTION_SEND);
+        share.setType(item.mimeType == null ? "*/*" : item.mimeType);
+        share.putExtra(Intent.EXTRA_STREAM, item.uri);
+        share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(Intent.createChooser(share, "分享导出文件"));
+    }
+
+    private void deleteExportedFile(ExportedFileItem item) {
+        int deleted = getContentResolver().delete(item.uri, null, null);
+        showToast(deleted > 0 ? "文件已删除" : "删除失败");
+    }
+
+    private void moveExportedFile(ExportedFileItem item) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            showToast("当前系统不支持直接移动，请使用文件管理器操作");
+            return;
+        }
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/HR40_Archive");
+        int updated = getContentResolver().update(item.uri, values, null, null);
+        showToast(updated > 0 ? "已移动到 Downloads/HR40_Archive" : "移动失败");
+    }
+
+    private List<ExportedFileItem> loadExportedFiles() {
+        List<ExportedFileItem> items = new ArrayList<>();
+        String[] projection = new String[]{
+                MediaStore.Downloads._ID,
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.MIME_TYPE,
+                MediaStore.MediaColumns.RELATIVE_PATH
+        };
+        String selection = MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?";
+        String[] args = new String[]{"Download/HR40%"};
+        ContentResolver resolver = getContentResolver();
+        try (Cursor cursor = resolver.query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, args, MediaStore.MediaColumns.DATE_MODIFIED + " DESC")) {
+            if (cursor == null) {
+                return items;
+            }
+            int idCol = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID);
+            int nameCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME);
+            int mimeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE);
+            int pathCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH);
+            while (cursor.moveToNext()) {
+                ExportedFileItem item = new ExportedFileItem();
+                long id = cursor.getLong(idCol);
+                item.uri = ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id);
+                item.name = cursor.getString(nameCol);
+                item.mimeType = cursor.getString(mimeCol);
+                item.relativePath = cursor.getString(pathCol);
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
+    private void showHistoryManageDialog() {
+        final int[] retentionOptions = new int[]{7, 30, 90, 180, 365};
+        final String[] retentionLabels = new String[]{"保留 1 周", "保留 1 个月", "保留 3 个月", "保留 6 个月", "保留 1 年"};
+        SharedPreferences prefs = getSharedPreferences(PREFS_META, MODE_PRIVATE);
+        boolean autoEnabled = prefs.getBoolean(KEY_AUTO_CLEANUP_ENABLED, false);
+        int currentDays = prefs.getInt(KEY_RETENTION_DAYS, 30);
+        int checked = 1;
+        for (int i = 0; i < retentionOptions.length; i++) {
+            if (retentionOptions[i] == currentDays) {
+                checked = i;
+                break;
+            }
+        }
+        final boolean[] auto = new boolean[]{autoEnabled};
+        final int[] selectedDays = new int[]{retentionOptions[checked]};
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("历史数据管理")
+                .setMultiChoiceItems(new String[]{"启用自动清理"}, new boolean[]{autoEnabled}, (dialog, which, isChecked) -> auto[0] = isChecked)
+                .setSingleChoiceItems(retentionLabels, checked, (dialog, which) -> selectedDays[0] = retentionOptions[which])
+                .setNeutralButton("立即清理", (dialog, which) -> {
+                    int deleted = cleanupHistoryOlderThanDays(selectedDays[0]);
+                    showToast("已清理 " + deleted + " 条历史训练记录");
+                })
+                .setNegativeButton("取消", null)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    prefs.edit()
+                            .putBoolean(KEY_AUTO_CLEANUP_ENABLED, auto[0])
+                            .putInt(KEY_RETENTION_DAYS, selectedDays[0])
+                            .apply();
+                    if (auto[0]) {
+                        int deleted = cleanupHistoryOlderThanDays(selectedDays[0]);
+                        showToast("已保存并清理 " + deleted + " 条历史记录");
+                    } else {
+                        showToast("历史清理设置已保存");
+                    }
+                })
+                .show();
+    }
+
+    private int cleanupHistoryOlderThanDays(int days) {
+        long cutoff = System.currentTimeMillis() - days * 24L * 60L * 60L * 1000L;
+        int deleted = WorkoutRepository.deleteWorkoutsOlderThan(this, cutoff);
+        lastCompletedSession = WorkoutRepository.loadLatest(this);
+        updateWorkoutUi();
+        return deleted;
+    }
+
+    private void runAutoHistoryCleanupIfNeeded() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_META, MODE_PRIVATE);
+        if (!prefs.getBoolean(KEY_AUTO_CLEANUP_ENABLED, false)) {
+            return;
+        }
+        long today = System.currentTimeMillis() / (24L * 60L * 60L * 1000L);
+        long lastDay = prefs.getLong(KEY_LAST_AUTO_CLEANUP_DAY, -1L);
+        if (today == lastDay) {
+            return;
+        }
+        int days = prefs.getInt(KEY_RETENTION_DAYS, 30);
+        cleanupHistoryOlderThanDays(days);
+        prefs.edit().putLong(KEY_LAST_AUTO_CLEANUP_DAY, today).apply();
     }
 
     private long currentWorkoutDurationMillis() {
@@ -768,6 +964,8 @@ heartRateManager = new BleHeartRateManager(this, this);
         rawExportButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         exerciseManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        fileManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        historyManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         if (!inWorkout) {
             startButton.setText("开始运动");
         } else if (workoutPaused) {
