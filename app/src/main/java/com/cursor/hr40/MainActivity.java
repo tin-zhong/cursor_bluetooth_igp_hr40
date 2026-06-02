@@ -42,12 +42,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-import com.cursor.hr40.db.HeartRateSampleEntity;
-import com.cursor.hr40.db.StrengthSetEntity;
-import com.cursor.hr40.db.WorkoutDao;
-import com.cursor.hr40.db.WorkoutDatabase;
-import com.cursor.hr40.db.WorkoutRecordEntity;
-import com.cursor.hr40.db.WorkoutWithDetails;
 
 public final class MainActivity extends AppCompatActivity implements BleHeartRateManager.Listener {
     private static final int REQUEST_BLE_PERMISSIONS = 1001;
@@ -83,7 +77,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private TextView repsValueText;
     private TextView strengthLogText;
     private int pendingReps;
-    private WorkoutDatabase workoutDatabase;
 
     private final Runnable ticker = new Runnable() {
         @Override
@@ -97,8 +90,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         profile = ProfileStore.load(this);
-        workoutDatabase = WorkoutDatabase.getInstance(this);
-        heartRateManager = new BleHeartRateManager(this, this);
+heartRateManager = new BleHeartRateManager(this, this);
         buildUi();
         reloadExerciseNames();
         loadLatestWorkout();
@@ -207,7 +199,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v3.1.0");
+        title.setText("HR40 离线运动监测 v3.2.0");
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -439,21 +431,14 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         }
         activeSession.finish();
         persistSessionQuietly(activeSession);
-        persistSessionToRoom(activeSession);
-        lastCompletedSession = activeSession;
+lastCompletedSession = activeSession;
         activeSession = null;
         updateWorkoutUi();
         showToast("运动已结束，可按需导出 PDF");
     }
 
     private void showExportSessionDialog() {
-        List<WorkoutSession> sessions;
-        try {
-            sessions = WorkoutRepository.loadAll(this);
-        } catch (IOException e) {
-            showToast("读取运动记录失败: " + e.getMessage());
-            return;
-        }
+        List<WorkoutSession> sessions = WorkoutRepository.loadAll(this);
         List<WorkoutSession> exportableSessions = new ArrayList<>();
         List<String> labels = new ArrayList<>();
         for (WorkoutSession session : sessions) {
@@ -638,70 +623,18 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     private void loadLatestWorkout() {
-        try {
-            WorkoutSession latest = WorkoutRepository.loadLatest(this);
-            if (latest != null && !latest.isActive()) {
-                lastCompletedSession = latest;
-            }
-        } catch (IOException ignored) {
-            lastCompletedSession = null;
+        WorkoutSession latest = WorkoutRepository.loadLatest(this);
+        if (latest != null && !latest.isActive()) {
+            lastCompletedSession = latest;
         }
     }
 
     private void persistSessionQuietly(WorkoutSession session) {
-        try {
-            WorkoutRepository.save(this, session);
-        } catch (IOException | JSONException e) {
-            statusText.setText("保存运动记录失败: " + e.getMessage());
-        }
-    }
-
-    private void persistSessionToRoom(WorkoutSession session) {
-        WorkoutDao dao = workoutDatabase.workoutDao();
-
-        WorkoutRecordEntity workout = new WorkoutRecordEntity();
-        workout.id = session.id;
-        workout.startMillis = session.startMillis;
-        workout.endMillis = session.endMillis;
-        workout.workoutType = session.workoutType;
-        dao.upsertWorkout(workout);
-
-        dao.deleteHeartRateSamplesBySession(session.id);
-        List<HeartRateSampleEntity> sampleEntities = new ArrayList<>();
-        for (HeartRateSample sample : session.samples()) {
-            HeartRateSampleEntity entity = new HeartRateSampleEntity();
-            entity.sessionId = session.id;
-            entity.timestampMillis = sample.timestampMillis;
-            entity.bpm = sample.bpm;
-            entity.contactSupported = sample.contactSupported;
-            entity.contactDetected = sample.contactDetected;
-            entity.energyExpendedKj = sample.energyExpendedKj;
-            entity.rrIntervalCount = sample.rrIntervalCount;
-            sampleEntities.add(entity);
-        }
-        if (!sampleEntities.isEmpty()) {
-            dao.insertHeartRateSamples(sampleEntities);
-        }
-
-        dao.deleteStrengthSetsBySession(session.id);
-        List<StrengthSetEntity> setEntities = new ArrayList<>();
-        for (StrengthSet set : session.strengthSets()) {
-            StrengthSetEntity entity = new StrengthSetEntity();
-            entity.sessionId = session.id;
-            entity.exerciseName = set.exerciseName;
-            entity.weight = set.weight;
-            entity.weightUnit = set.weightUnit;
-            entity.reps = set.reps;
-            entity.timestampMillis = set.timestampMillis;
-            setEntities.add(entity);
-        }
-        if (!setEntities.isEmpty()) {
-            dao.insertStrengthSets(setEntities);
-        }
+        WorkoutRepository.save(this, session);
     }
 
     private void exportRawWorkoutData() {
-        List<WorkoutWithDetails> details = workoutDatabase.workoutDao().loadAllWorkoutsWithDetails();
+        List<com.cursor.hr40.db.WorkoutWithDetails> details = WorkoutRepository.loadAllWithDetails(this);
         if (details.isEmpty()) {
             showToast("数据库暂无可导出的训练数据");
             return;
