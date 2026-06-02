@@ -50,7 +50,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private TextView statusText;
     private TextView bpmText;
     private TextView durationText;
+    private TextView caloriesText;
     private LinearLayout durationSection;
+    private LinearLayout caloriesSection;
     private MaterialButton startButton;
     private MaterialButton endButton;
     private MaterialButton exportButton;
@@ -155,7 +157,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         scrollView.addView(root, matchWrap());
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v1.1.1");
+        title.setText("HR40 离线运动监测 v2.1.2");
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
         title.setTextColor(getColor(R.color.md_primary));
         title.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -190,6 +192,20 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         durationSection.addView(durationText, matchWrap());
         durationSection.setVisibility(View.GONE);
         metricsContent.addView(durationSection, matchWrap());
+
+        caloriesSection = verticalLayout();
+        TextView caloriesLabel = textView("估算消耗");
+        caloriesLabel.setGravity(Gravity.CENTER_HORIZONTAL);
+        caloriesLabel.setTextColor(Color.DKGRAY);
+        caloriesSection.addView(caloriesLabel, matchWrap());
+        caloriesText = new TextView(this);
+        caloriesText.setText("0.0 kcal");
+        caloriesText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f);
+        caloriesText.setTextColor(getColor(R.color.md_secondary));
+        caloriesText.setGravity(Gravity.CENTER_HORIZONTAL);
+        caloriesSection.addView(caloriesText, matchWrap());
+        caloriesSection.setVisibility(View.GONE);
+        metricsContent.addView(caloriesSection, matchWrap());
 
         TextView bpmLabel = textView("bpm");
         bpmLabel.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -495,8 +511,13 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
         boolean inWorkout = activeSession != null;
         durationSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
+        caloriesSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         if (inWorkout) {
             durationText.setText(formatDuration(activeSession.durationMillis()));
+            caloriesText.setText(String.format(Locale.US, "%.1f kcal",
+                    EnergyEstimator.estimateCalories(profile, activeSession)));
+        } else {
+            caloriesText.setText("0.0 kcal");
         }
 
         boolean showStrength = inWorkout
