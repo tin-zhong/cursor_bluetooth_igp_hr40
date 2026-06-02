@@ -21,7 +21,12 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.json.JSONException;
 
@@ -42,12 +47,22 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
 
     private TextView statusText;
     private TextView bpmText;
+    private TextView durationText;
     private TextView profileText;
     private TextView workoutText;
     private TextView statsText;
     private Button startButton;
     private Button endButton;
     private Button exportButton;
+    private LinearLayout strengthPanel;
+    private Spinner exerciseSpinner;
+    private ArrayAdapter<String> exerciseAdapter;
+    private final List<String> exerciseNames = new ArrayList<>();
+    private RadioGroup weightUnitGroup;
+    private EditText strengthWeightInput;
+    private TextView repsValueText;
+    private TextView strengthLogText;
+    private int pendingReps;
 
     private final Runnable ticker = new Runnable() {
         @Override
@@ -63,6 +78,7 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         profile = ProfileStore.load(this);
         heartRateManager = new BleHeartRateManager(this, this);
         buildUi();
+        reloadExerciseNames();
         loadLatestWorkout();
         updateAllUi();
         if (profile == null) {
@@ -103,6 +119,8 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         reconnectScheduled = false;
         latestSample = sample;
         bpmText.setText(String.valueOf(sample.bpm));
+        int maxHr = profile == null ? 190 : profile.estimatedMaxHeartRate();
+        bpmText.setTextColor(WorkoutStats.zoneColor(sample.bpm, maxHr));
         String contact = sample.contactSupported
                 ? (sample.contactDetected ? "佩戴状态正常" : "请调整心率带佩戴")
                 : "设备未上报佩戴状态";
@@ -147,9 +165,16 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         bpmText = new TextView(this);
         bpmText.setText("--");
         bpmText.setTextSize(64f);
-        bpmText.setTextColor(Color.rgb(211, 47, 47));
+        bpmText.setTextColor(Color.GRAY);
         bpmText.setGravity(Gravity.CENTER_HORIZONTAL);
         root.addView(bpmText, matchWrap());
+
+        durationText = new TextView(this);
+        durationText.setText("--");
+        durationText.setTextSize(64f);
+        durationText.setTextColor(Color.BLACK);
+        durationText.setGravity(Gravity.CENTER_HORIZONTAL);
+        root.addView(durationText, matchWrap());
 
         TextView bpmLabel = label("bpm");
         bpmLabel.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -170,6 +195,72 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         exportButton = button("导出最近一次运动 PDF");
         exportButton.setOnClickListener(view -> exportLastWorkout());
         root.addView(exportButton, matchWrap());
+
+
+        strengthPanel = new LinearLayout(this);
+        strengthPanel.setOrientation(LinearLayout.VERTICAL);
+        strengthPanel.setVisibility(View.GONE);
+
+        TextView strengthTitle = label("力量训练");
+        strengthTitle.setTextColor(Color.rgb(21, 101, 192));
+        strengthPanel.addView(strengthTitle, matchWrap());
+
+        exerciseSpinner = new Spinner(this);
+        strengthPanel.addView(exerciseSpinner, matchWrap());
+
+        Button addExerciseButton = button("添加动作");
+        addExerciseButton.setOnClickListener(view -> showAddExerciseDialog());
+        strengthPanel.addView(addExerciseButton, matchWrap());
+
+        weightUnitGroup = new RadioGroup(this);
+        weightUnitGroup.setOrientation(RadioGroup.HORIZONTAL);
+        RadioButton kgUnit = new RadioButton(this);
+        kgUnit.setText("kg");
+        kgUnit.setId(View.generateViewId());
+        RadioButton lbUnit = new RadioButton(this);
+        lbUnit.setText("lb");
+        lbUnit.setId(View.generateViewId());
+        weightUnitGroup.addView(kgUnit);
+        weightUnitGroup.addView(lbUnit);
+        if (StrengthSet.UNIT_LB.equals(ExerciseStore.loadWeightUnit(this))) {
+            weightUnitGroup.check(lbUnit.getId());
+        } else {
+            weightUnitGroup.check(kgUnit.getId());
+        }
+        weightUnitGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            String unit = checkedId == lbUnit.getId() ? StrengthSet.UNIT_LB : StrengthSet.UNIT_KG;
+            ExerciseStore.saveWeightUnit(this, unit);
+        });
+        strengthPanel.addView(weightUnitGroup, matchWrap());
+
+        strengthWeightInput = input("重量", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        strengthPanel.addView(strengthWeightInput, matchWrap());
+
+        LinearLayout repsRow = new LinearLayout(this);
+        repsRow.setOrientation(LinearLayout.HORIZONTAL);
+        repsRow.setGravity(Gravity.CENTER_VERTICAL);
+        repsValueText = label("0");
+        repsValueText.setTextSize(28f);
+        repsValueText.setGravity(Gravity.CENTER);
+        repsValueText.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        repsRow.addView(createRepsButton("-10", -10));
+        repsRow.addView(createRepsButton("-5", -5));
+        repsRow.addView(createRepsButton("-1", -1));
+        repsRow.addView(repsValueText);
+        repsRow.addView(createRepsButton("+1", 1));
+        repsRow.addView(createRepsButton("+5", 5));
+        repsRow.addView(createRepsButton("+10", 10));
+        strengthPanel.addView(repsRow, matchWrap());
+
+        Button recordSetButton = button("记录本组");
+        recordSetButton.setOnClickListener(view -> recordStrengthSet());
+        strengthPanel.addView(recordSetButton, matchWrap());
+
+        strengthLogText = label("");
+        strengthLogText.setTextIsSelectable(true);
+        strengthPanel.addView(strengthLogText, matchWrap());
+
+        root.addView(strengthPanel, matchWrap());
 
         Button editProfileButton = button("编辑运动人员资料");
         editProfileButton.setOnClickListener(view -> showProfileDialog(true));
@@ -232,6 +323,9 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
             return;
         }
         activeSession = WorkoutSession.startNow();
+        pendingReps = 0;
+        repsValueText.setText("0");
+        strengthWeightInput.setText("");
         persistSessionQuietly(activeSession);
         statusText.setText("运动已开始，等待 HR40 心率数据...");
         updateAllUi();
@@ -260,7 +354,7 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
                 return;
             }
         }
-        if (session == null || session.samples().isEmpty()) {
+        if (session == null || (session.samples().isEmpty() && session.strengthSets().isEmpty())) {
             showToast("暂无可导出的运动记录");
             return;
         }
@@ -391,13 +485,24 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         WorkoutSession displaySession = activeSession != null ? activeSession : lastCompletedSession;
         startButton.setEnabled(activeSession == null);
         endButton.setEnabled(activeSession != null);
-        exportButton.setEnabled(displaySession != null && !displaySession.samples().isEmpty());
+        exportButton.setEnabled(displaySession != null
+                && (!displaySession.samples().isEmpty() || !displaySession.strengthSets().isEmpty()));
+        strengthPanel.setVisibility(activeSession == null ? View.GONE : View.VISIBLE);
+
+        if (activeSession == null) {
+            durationText.setText("--");
+        } else {
+            durationText.setText(formatDuration(activeSession.durationMillis()));
+        }
 
         if (displaySession == null) {
             workoutText.setText("运动记录: 尚未开始");
             statsText.setText("");
+            strengthLogText.setText("");
             return;
         }
+
+        updateStrengthLog(displaySession);
 
         WorkoutStats stats = WorkoutStats.calculate(profile, displaySession);
         String state = displaySession.isActive() ? "进行中" : "已结束";
@@ -421,6 +526,133 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
                     .append("\n");
         }
         statsText.setText(builder.toString());
+    }
+
+
+    private Button createRepsButton(String labelText, int delta) {
+        Button button = new Button(this);
+        button.setText(labelText);
+        button.setAllCaps(false);
+        button.setOnClickListener(view -> adjustPendingReps(delta));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        params.setMargins(4, 0, 4, 0);
+        button.setLayoutParams(params);
+        return button;
+    }
+
+    private void adjustPendingReps(int delta) {
+        pendingReps = Math.max(0, pendingReps + delta);
+        repsValueText.setText(String.valueOf(pendingReps));
+    }
+
+    private void reloadExerciseNames() {
+        try {
+            exerciseNames.clear();
+            exerciseNames.addAll(ExerciseStore.loadExercises(this));
+        } catch (IOException e) {
+            exerciseNames.clear();
+        }
+        if (exerciseAdapter == null) {
+            exerciseAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, exerciseNames);
+            exerciseAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            exerciseSpinner.setAdapter(exerciseAdapter);
+        } else {
+            exerciseAdapter.notifyDataSetChanged();
+        }
+    }
+
+    private void showAddExerciseDialog() {
+        EditText nameInput = input("动作名称", InputType.TYPE_CLASS_TEXT);
+        new AlertDialog.Builder(this)
+                .setTitle("添加训练动作")
+                .setMessage("动作名称会保存在本机，下次启动仍可选择。")
+                .setView(nameInput)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String name = nameInput.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        showToast("请输入动作名称");
+                        return;
+                    }
+                    try {
+                        ExerciseStore.addExercise(this, name);
+                        reloadExerciseNames();
+                        for (int i = 0; i < exerciseNames.size(); i++) {
+                            if (exerciseNames.get(i).equalsIgnoreCase(name)) {
+                                exerciseSpinner.setSelection(i);
+                                break;
+                            }
+                        }
+                    } catch (IOException | JSONException e) {
+                        showToast("保存动作失败: " + e.getMessage());
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void recordStrengthSet() {
+        if (activeSession == null) {
+            showToast("请先开始运动");
+            return;
+        }
+        if (exerciseNames.isEmpty()) {
+            showToast("请先添加训练动作");
+            return;
+        }
+        String exerciseName = (String) exerciseSpinner.getSelectedItem();
+        if (exerciseName == null || exerciseName.trim().isEmpty()) {
+            showToast("请选择训练动作");
+            return;
+        }
+        double weight;
+        try {
+            weight = Double.parseDouble(strengthWeightInput.getText().toString().trim());
+        } catch (NumberFormatException e) {
+            showToast("请输入有效重量");
+            return;
+        }
+        if (weight <= 0) {
+            showToast("重量必须大于 0");
+            return;
+        }
+        if (pendingReps <= 0) {
+            showToast("次数必须大于 0");
+            return;
+        }
+        String unit = ExerciseStore.loadWeightUnit(this);
+        StrengthSet set = new StrengthSet(
+                exerciseName.trim(),
+                weight,
+                unit,
+                pendingReps,
+                System.currentTimeMillis());
+        activeSession.addStrengthSet(set);
+        persistSessionQuietly(activeSession);
+        pendingReps = 0;
+        repsValueText.setText("0");
+        updateStrengthLog(activeSession);
+        showToast("已记录: " + exerciseName + " " + set.displayWeight() + " x " + set.reps);
+    }
+
+    private void updateStrengthLog(WorkoutSession session) {
+        List<StrengthSet> sets = session.strengthSets();
+        if (sets.isEmpty()) {
+            strengthLogText.setText("力量训练记录: 暂无");
+            return;
+        }
+        StringBuilder builder = new StringBuilder("力量训练记录\n");
+        int index = 1;
+        for (StrengthSet set : sets) {
+            builder.append(index++)
+                    .append(". ")
+                    .append(set.exerciseName)
+                    .append("  ")
+                    .append(set.displayWeight())
+                    .append("  x")
+                    .append(set.reps)
+                    .append("\n");
+        }
+        strengthLogText.setText(builder.toString().trim());
     }
 
     private boolean hasBlePermissions() {

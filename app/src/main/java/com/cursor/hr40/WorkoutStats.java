@@ -59,7 +59,15 @@ public final class WorkoutStats {
                 samples.size());
     }
 
-    private static int zoneIndex(int bpm, int maxHr) {
+    public static final int[] ZONE_COLORS = {
+            0xFF64B5F6,
+            0xFF66BB6A,
+            0xFFFFCA28,
+            0xFFFB8C00,
+            0xFFE53935
+    };
+
+    public static int zoneIndex(int bpm, int maxHr) {
         double ratio = bpm / (double) maxHr;
         if (ratio < 0.60) {
             return 0;
@@ -74,5 +82,9 @@ public final class WorkoutStats {
             return 3;
         }
         return 4;
+    }
+
+    public static int zoneColor(int bpm, int maxHr) {
+        return ZONE_COLORS[zoneIndex(bpm, maxHr)];
     }
 }
