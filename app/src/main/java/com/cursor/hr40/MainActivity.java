@@ -2,6 +2,7 @@ package com.cursor.hr40;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -204,7 +205,7 @@ heartRateManager = new BleHeartRateManager(this, this);
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v3.3.0");
+        title.setText("HR40 离线运动监测 v3.3.1");
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -280,7 +281,7 @@ heartRateManager = new BleHeartRateManager(this, this);
         startButton = materialButton("开始运动", v -> handleStartPauseButton());
         root.addView(startButton, matchWrap());
 
-        endButton = materialButton("结束运动", v -> finishWorkout());
+        endButton = materialButton("结束运动", v -> confirmFinishWorkout());
         endButton.setEnabled(false);
         root.addView(endButton, matchWrap());
 
@@ -463,7 +464,20 @@ heartRateManager = new BleHeartRateManager(this, this);
         }, 1200L);
     }
 
-    private void finishWorkout() {
+    private void confirmFinishWorkout() {
+        if (activeSession == null) {
+            showToast("当前没有正在进行的运动");
+            return;
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("确认结束运动")
+                .setMessage("确定要结束当前运动吗？")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("确认结束", (dialog, which) -> finishWorkoutInternal())
+                .show();
+    }
+
+    private void finishWorkoutInternal() {
         if (activeSession == null) {
             showToast("当前没有正在进行的运动");
             return;
@@ -725,9 +739,21 @@ heartRateManager = new BleHeartRateManager(this, this);
         return start + " | " + type + " | 时长 " + formatDuration(session.durationMillis());
     }
 
+    private void updateEndButtonStyle(boolean enabled) {
+        if (enabled) {
+            endButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(211, 47, 47)));
+            endButton.setTextColor(Color.WHITE);
+        } else {
+            endButton.setBackgroundTintList(ColorStateList.valueOf(Color.LTGRAY));
+            endButton.setTextColor(Color.DKGRAY);
+        }
+    }
+
     private void updateWorkoutUi() {
         startButton.setEnabled(true);
-        endButton.setEnabled(activeSession != null);
+        boolean endEnabled = activeSession != null;
+        endButton.setEnabled(endEnabled);
+        updateEndButtonStyle(endEnabled);
         exportButton.setEnabled(true);
         rawExportButton.setEnabled(true);
 
