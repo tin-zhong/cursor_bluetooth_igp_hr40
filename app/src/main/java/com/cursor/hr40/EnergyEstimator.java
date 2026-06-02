@@ -10,19 +10,28 @@ import java.util.List;
  */
 public final class EnergyEstimator {
     public static final int MIN_HR_FOR_CALORIES = 60;
+    // Keytel is tuned for continuous aerobic work. Strength mode is corrected down
+    // to better reflect rest intervals between sets.
+    public static final double STRENGTH_ACTIVITY_COEFFICIENT = 0.88;
     private static final double KCAL_PER_KJ = 4.184;
 
     private EnergyEstimator() {
     }
 
     public static double estimateCalories(UserProfile profile, WorkoutSession session) {
+        if (profile == null || session == null) {
+            return 0.0;
+        }
         List<HeartRateSample> samples = session.samples();
-        if (profile == null || samples.size() < 2) {
+        if (samples.size() < 2) {
             return 0.0;
         }
         double calories = 0.0;
         for (int i = 0; i < samples.size() - 1; i++) {
             calories += caloriesForSegment(profile, samples.get(i), samples.get(i + 1));
+        }
+        if (WorkoutSession.TYPE_STRENGTH.equals(session.workoutType)) {
+            calories *= STRENGTH_ACTIVITY_COEFFICIENT;
         }
         return calories;
     }
