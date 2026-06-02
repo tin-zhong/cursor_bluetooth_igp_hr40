@@ -77,6 +77,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private TextView repsValueText;
     private TextView strengthLogText;
     private int pendingReps;
+    private boolean workoutPaused;
+    private long pauseStartedAtMillis;
+    private long pausedDurationMillis;
 
     private final Runnable ticker = new Runnable() {
         @Override
@@ -141,12 +144,14 @@ heartRateManager = new BleHeartRateManager(this, this);
         bpmText.setText(String.valueOf(sample.bpm));
         int maxHr = profile == null ? 190 : profile.estimatedMaxHeartRate();
         bpmText.setTextColor(WorkoutStats.zoneColor(sample.bpm, maxHr));
-        String contact = sample.contactSupported
-                ? (sample.contactDetected ? "佩戴状态正常" : "请调整心率带佩戴")
-                : "设备未上报佩戴状态";
-        statusText.setText(contact);
+        if (!workoutPaused) {
+            String contact = sample.contactSupported
+                    ? (sample.contactDetected ? "佩戴状态正常" : "请调整心率带佩戴")
+                    : "设备未上报佩戴状态";
+            statusText.setText(contact);
+        }
 
-        if (activeSession != null) {
+        if (activeSession != null && !workoutPaused) {
             activeSession.addSample(sample);
             if (activeSession.samples().size() % 10 == 0) {
                 persistSessionQuietly(activeSession);
@@ -199,7 +204,7 @@ heartRateManager = new BleHeartRateManager(this, this);
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v3.2.1");
+        title.setText("HR40 离线运动监测 v3.3.0");
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -272,7 +277,7 @@ heartRateManager = new BleHeartRateManager(this, this);
 
         root.addView(materialButton("扫描并连接 HR40", v -> scanOrRequestPermissions()), matchWrap());
 
-        startButton = materialButton("开始运动", v -> promptWorkoutType());
+        startButton = materialButton("开始运动", v -> handleStartPauseButton());
         root.addView(startButton, matchWrap());
 
         endButton = materialButton("结束运动", v -> finishWorkout());
@@ -362,13 +367,44 @@ heartRateManager = new BleHeartRateManager(this, this);
         setContentView(screen);
     }
 
+    private void handleStartPauseButton() {
+        if (activeSession == null) {
+            promptWorkoutType();
+            return;
+        }
+        if (workoutPaused) {
+            resumeWorkout();
+        } else {
+            pauseWorkout();
+        }
+    }
+
+    private void pauseWorkout() {
+        if (activeSession == null || workoutPaused) {
+            return;
+        }
+        workoutPaused = true;
+        pauseStartedAtMillis = System.currentTimeMillis();
+        statusText.setText("运动已暂停");
+        showToast("已暂停运动");
+        updateWorkoutUi();
+    }
+
+    private void resumeWorkout() {
+        if (activeSession == null || !workoutPaused) {
+            return;
+        }
+        pausedDurationMillis += Math.max(0L, System.currentTimeMillis() - pauseStartedAtMillis);
+        workoutPaused = false;
+        pauseStartedAtMillis = 0L;
+        statusText.setText("运动已继续");
+        showToast("已继续运动");
+        updateWorkoutUi();
+    }
+
     private void promptWorkoutType() {
         if (profile == null) {
             showProfileDialog(false);
-            return;
-        }
-        if (activeSession != null) {
-            showToast("当前已有运动记录正在进行");
             return;
         }
         new MaterialAlertDialogBuilder(this)
@@ -386,6 +422,9 @@ heartRateManager = new BleHeartRateManager(this, this);
 
     private void beginWorkout(String workoutType) {
         activeSession = WorkoutSession.startNow(workoutType);
+        workoutPaused = false;
+        pauseStartedAtMillis = 0L;
+        pausedDurationMillis = 0L;
         pendingReps = 0;
         repsValueText.setText("0");
         strengthWeightInput.setText("");
@@ -429,10 +468,22 @@ heartRateManager = new BleHeartRateManager(this, this);
             showToast("当前没有正在进行的运动");
             return;
         }
-        activeSession.finish();
-        persistSessionQuietly(activeSession);
-lastCompletedSession = activeSession;
+        if (workoutPaused) {
+            pausedDurationMillis += Math.max(0L, System.currentTimeMillis() - pauseStartedAtMillis);
+            workoutPaused = false;
+            pauseStartedAtMillis = 0L;
+        }
+        long adjustedEndMillis = System.currentTimeMillis() - pausedDurationMillis;
+        activeSession.endMillis = Math.max(activeSession.startMillis, adjustedEndMillis);
+        try {
+            WorkoutRepository.archiveFinishedSession(this, activeSession);
+        } catch (IOException | JSONException e) {
+            showToast("保存运动记录失败: " + e.getMessage());
+            return;
+        }
+        lastCompletedSession = activeSession;
         activeSession = null;
+        pausedDurationMillis = 0L;
         updateWorkoutUi();
         showToast("运动已结束，可按需导出 PDF");
     }
@@ -656,6 +707,17 @@ lastCompletedSession = activeSession;
         }
     }
 
+    private long currentWorkoutDurationMillis() {
+        if (activeSession == null) {
+            return 0L;
+        }
+        long duration = activeSession.durationMillis() - pausedDurationMillis;
+        if (workoutPaused) {
+            duration -= Math.max(0L, System.currentTimeMillis() - pauseStartedAtMillis);
+        }
+        return Math.max(0L, duration);
+    }
+
     private String formatSessionLabel(WorkoutSession session) {
         String type = WorkoutSession.TYPE_STRENGTH.equals(session.workoutType) ? "力量" : "有氧";
         String start = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
@@ -664,16 +726,23 @@ lastCompletedSession = activeSession;
     }
 
     private void updateWorkoutUi() {
-        startButton.setEnabled(activeSession == null);
+        startButton.setEnabled(true);
         endButton.setEnabled(activeSession != null);
         exportButton.setEnabled(true);
         rawExportButton.setEnabled(true);
 
         boolean inWorkout = activeSession != null;
+        if (!inWorkout) {
+            startButton.setText("开始运动");
+        } else if (workoutPaused) {
+            startButton.setText("继续运动");
+        } else {
+            startButton.setText("暂停运动");
+        }
         durationSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         caloriesSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         if (inWorkout) {
-            durationText.setText(formatDuration(activeSession.durationMillis()));
+            durationText.setText(formatDuration(currentWorkoutDurationMillis()));
             caloriesText.setText(String.format(Locale.US, "%.1f kcal",
                     EnergyEstimator.estimateCalories(profile, activeSession)));
         } else {
