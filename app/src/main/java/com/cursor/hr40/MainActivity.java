@@ -21,6 +21,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -46,6 +49,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private WorkoutSession lastCompletedSession;
     private HeartRateSample latestSample;
     private boolean reconnectScheduled;
+    private boolean heartRateLinkActive;
 
     private TextView statusText;
     private TextView bpmText;
@@ -114,11 +118,15 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     @Override
     public void onStatus(String status) {
         statusText.setText(status);
+        if (shouldClearHeartRateDisplay(status)) {
+            showDisconnectedHeartRate();
+        }
     }
 
     @Override
     public void onHeartRate(HeartRateSample sample) {
         reconnectScheduled = false;
+        heartRateLinkActive = true;
         latestSample = sample;
         bpmText.setText(String.valueOf(sample.bpm));
         int maxHr = profile == null ? 190 : profile.estimatedMaxHeartRate();
@@ -140,10 +148,38 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     @Override
     public void onError(String message) {
         statusText.setText(message);
+        showDisconnectedHeartRate();
         showToast(message);
         if (activeSession != null && message.contains("连接异常: 8")) {
             scheduleWorkoutReconnect();
         }
+    }
+
+
+    private void showDisconnectedHeartRate() {
+        heartRateLinkActive = false;
+        bpmText.setText("--");
+        bpmText.setTextColor(Color.GRAY);
+    }
+
+    private boolean shouldClearHeartRateDisplay(String status) {
+        return status.contains("已断开")
+                || status.contains("扫描")
+                || status.contains("正在连接")
+                || status.contains("未连接");
+    }
+
+    private void applySystemBarPadding(ScrollView scrollView, LinearLayout root) {
+        ViewCompat.setOnApplyWindowInsetsListener(scrollView, (view, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            root.setPadding(
+                    dp(20),
+                    insets.top + dp(20),
+                    dp(20),
+                    dp(24));
+            return windowInsets;
+        });
+        ViewCompat.requestApplyInsets(scrollView);
     }
 
     private void buildUi() {
@@ -153,11 +189,16 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(20), dp(28), dp(20), dp(24));
+        root.setPadding(dp(20), dp(24), dp(20), dp(24));
+        applySystemBarPadding(scrollView, root);
         scrollView.addView(root, matchWrap());
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v2.1.3");
+        title.setText("HR40 离线运动监测 v2.1.4");
+        LinearLayout.LayoutParams titleParams = matchWrap();
+        titleParams.topMargin = dp(8);
+        titleParams.bottomMargin = dp(4);
+        title.setLayoutParams(titleParams);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
         title.setTextColor(getColor(R.color.md_primary));
         title.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -166,7 +207,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         statusText = textView("未连接心率带");
         statusText.setGravity(Gravity.CENTER_HORIZONTAL);
         statusText.setTextColor(Color.DKGRAY);
-        root.addView(statusText, matchWrap());
+        LinearLayout.LayoutParams statusParams = matchWrap();
+        statusParams.bottomMargin = dp(12);
+        root.addView(statusText, statusParams);
 
         MaterialCardView metricsCard = card();
         LinearLayout metricsContent = verticalLayout();
