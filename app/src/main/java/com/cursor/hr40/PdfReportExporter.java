@@ -115,7 +115,7 @@ public final class PdfReportExporter {
         y += 18;
         y = drawZones(canvas, paint, stats, session.durationMillis(), y);
 
-        if (!session.strengthSets().isEmpty()) {
+        if (WorkoutSession.TYPE_STRENGTH.equals(session.workoutType) && !session.strengthSets().isEmpty()) {
             if (y > PAGE_HEIGHT - 120) {
                 document.finishPage(page);
                 pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 2).create();
@@ -142,25 +142,42 @@ public final class PdfReportExporter {
             int startY) {
         paint.setTextSize(11);
         paint.setColor(Color.BLACK);
-        int y = startY;
-        drawText(canvas, paint, "运动开始", dateTime(session.startMillis), MARGIN, y);
-        drawText(canvas, paint, "运动结束", session.endMillis > 0L ? dateTime(session.endMillis) : "进行中", 310, y);
-        y += 18;
-        drawText(canvas, paint, "训练类型", workoutTypeLabel(session.workoutType), MARGIN, y);
-        drawText(canvas, paint, "运动时长", duration(session.durationMillis()), 310, y);
-        drawText(canvas, paint, "采样数量", String.valueOf(stats.sampleCount), 310, y);
-        y += 18;
-        drawText(canvas, paint, "平均心率", stats.avgBpm + " bpm", MARGIN, y);
-        drawText(canvas, paint, "力量组数", String.valueOf(session.strengthSets().size()), 310, y);
-        y += 18;
-        drawText(canvas, paint, "最高/最低", stats.maxBpm + " / " + stats.minBpm + " bpm", MARGIN, y);
-        y += 18;
-        drawText(canvas, paint, "估算消耗", String.format(Locale.US, "%.1f kcal", stats.calories), MARGIN, y);
         String profileText = profile == null
                 ? "未填写"
                 : profile.name + "，" + profile.heightCm + " cm，" + profile.weightKg + " kg，" + profile.age + " 岁";
-        drawText(canvas, paint, "运动人员", profileText, 310, y);
+        String caloriesText = String.format(Locale.US, "%.1f kcal", stats.calories);
+        String endText = session.endMillis > 0L ? dateTime(session.endMillis) : "进行中";
+        String hrRangeText = stats.maxBpm + " / " + stats.minBpm + " bpm";
+
+        int y = startY;
+        drawRow(canvas, paint, y, "运动开始", dateTime(session.startMillis), "运动结束", endText);
+        y += 18;
+        drawRow(canvas, paint, y, "训练类型", workoutTypeLabel(session.workoutType), "运动时长", duration(session.durationMillis()));
+        y += 18;
+        drawRow(canvas, paint, y, "采样数量", String.valueOf(stats.sampleCount), "平均心率", stats.avgBpm + " bpm");
+        y += 18;
+        if (WorkoutSession.TYPE_STRENGTH.equals(session.workoutType)) {
+            drawRow(canvas, paint, y, "最高/最低", hrRangeText, "力量组数", String.valueOf(session.strengthSets().size()));
+            y += 18;
+            drawRow(canvas, paint, y, "估算消耗", caloriesText, "运动人员", profileText);
+        } else {
+            drawRow(canvas, paint, y, "最高/最低", hrRangeText, "估算消耗", caloriesText);
+            y += 18;
+            drawText(canvas, paint, "运动人员", profileText, MARGIN, y);
+        }
         return y + 18;
+    }
+
+    private static void drawRow(
+            Canvas canvas,
+            Paint paint,
+            int y,
+            String leftLabel,
+            String leftValue,
+            String rightLabel,
+            String rightValue) {
+        drawText(canvas, paint, leftLabel, leftValue, MARGIN, y);
+        drawText(canvas, paint, rightLabel, rightValue, 310, y);
     }
 
     private static void drawHeartRateChart(
@@ -393,9 +410,11 @@ public final class PdfReportExporter {
 
     private static void drawText(Canvas canvas, Paint paint, String label, String value, int x, int y) {
         paint.setFakeBoldText(true);
-        canvas.drawText(label + ": ", x, y, paint);
+        String labelText = label + ": ";
+        canvas.drawText(labelText, x, y, paint);
         paint.setFakeBoldText(false);
-        canvas.drawText(value, x + 58, y, paint);
+        float labelWidth = paint.measureText(labelText);
+        canvas.drawText(value, x + labelWidth + 6f, y, paint);
     }
 
     private static String dateTime(long millis) {

@@ -26,17 +26,17 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 为了便于平板测试，当前分支还提交了一份已构建的 Debug APK：
 
 ```text
-dist/hr40-offline-fitness-v2.1.2.apk
+dist/hr40-offline-fitness-v2.1.3.apk
 ```
 
 下载该 APK 到一加平板 2 Pro 后，允许“安装未知来源应用”即可安装测试。
 
-## v2.1.2 更新
+## v2.1.3 更新
 
 - 升级心率消耗估算算法（Keytel 公式 + 60 bpm 阈值 + 区间平均）
 - 运动中实时显示累计估算消耗
 
-## v2.1.2 更新
+## v2.1.3 更新
 
 - 简洁主页面，开始运动后选择力量/有氧训练
 - 动作管理支持添加和删除
@@ -50,15 +50,15 @@ dist/hr40-offline-fitness-v2.1.2.apk
 - `y`：新增功能时 +1
 - `z`：仅页面/UI 调整时 +1
 
-当前版本：`2.1.2`
+当前版本：`2.1.3`
 - `x=2`：升级 Keytel 消耗算法（HR 区间平均、60 bpm 阈值、负数截断、性别公式）
 - `y=1`：保留 v1.x 功能基线
 - `z=2`：运动中实时显示估算消耗
 
 ## 安装注意
 
-如果安装后界面没有变化，请先卸载旧版 App，再安装 `dist/hr40-offline-fitness-v2.1.2.apk`。
-打开 App 后标题应显示 **HR40 离线运动监测 v2.1.2**，并能看到“运动时长”和“力量训练”区域。
+如果安装后界面没有变化，请先卸载旧版 App，再安装 `dist/hr40-offline-fitness-v2.1.3.apk`。
+打开 App 后标题应显示 **HR40 离线运动监测 v2.1.3**，并能看到“运动时长”和“力量训练”区域。
 
 ## 权限
 

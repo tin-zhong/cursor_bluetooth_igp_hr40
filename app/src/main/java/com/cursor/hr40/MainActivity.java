@@ -157,7 +157,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         scrollView.addView(root, matchWrap());
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v2.1.2");
+        title.setText("HR40 离线运动监测 v2.1.3");
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
         title.setTextColor(getColor(R.color.md_primary));
         title.setGravity(Gravity.CENTER_HORIZONTAL);
