@@ -113,7 +113,21 @@ public final class PdfReportExporter {
         y += 240;
         drawSectionTitle(canvas, paint, "心率区间", y);
         y += 18;
-        drawZones(canvas, paint, stats, session.durationMillis(), y);
+        y = drawZones(canvas, paint, stats, session.durationMillis(), y);
+
+        if (!session.strengthSets().isEmpty()) {
+            if (y > PAGE_HEIGHT - 120) {
+                document.finishPage(page);
+                pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 2).create();
+                page = document.startPage(pageInfo);
+                canvas = page.getCanvas();
+                y = MARGIN;
+            }
+            y += 24;
+            drawSectionTitle(canvas, paint, "力量训练记录", y);
+            y += 18;
+            drawStrengthSets(canvas, paint, session.strengthSets(), y);
+        }
 
         document.finishPage(page);
         return document;
@@ -136,7 +150,9 @@ public final class PdfReportExporter {
         drawText(canvas, paint, "采样数量", String.valueOf(stats.sampleCount), 310, y);
         y += 18;
         drawText(canvas, paint, "平均心率", stats.avgBpm + " bpm", MARGIN, y);
-        drawText(canvas, paint, "最高/最低", stats.maxBpm + " / " + stats.minBpm + " bpm", 310, y);
+        drawText(canvas, paint, "力量组数", String.valueOf(session.strengthSets().size()), 310, y);
+        y += 18;
+        drawText(canvas, paint, "最高/最低", stats.maxBpm + " / " + stats.minBpm + " bpm", MARGIN, y);
         y += 18;
         drawText(canvas, paint, "估算消耗", String.format(Locale.US, "%.1f kcal", stats.calories), MARGIN, y);
         String profileText = profile == null
@@ -310,7 +326,7 @@ public final class PdfReportExporter {
         return ZONE_COLORS[4];
     }
 
-    private static void drawZones(Canvas canvas, Paint paint, WorkoutStats stats, long totalMillis, int startY) {
+    private static int drawZones(Canvas canvas, Paint paint, WorkoutStats stats, long totalMillis, int startY) {
         int y = startY;
         long total = Math.max(1L, totalMillis);
         for (int i = 0; i < WorkoutStats.ZONE_LABELS.length; i++) {
@@ -324,6 +340,45 @@ public final class PdfReportExporter {
             canvas.drawText(duration(stats.zoneMillis[i]), MARGIN + 390, y, paint);
             y += 20;
         }
+        return y;
+    }
+
+    private static void drawStrengthSets(Canvas canvas, Paint paint, List<StrengthSet> sets, int startY) {
+        paint.setTextSize(10);
+        paint.setColor(Color.BLACK);
+        int y = startY;
+        canvas.drawText("序号", MARGIN, y, paint);
+        canvas.drawText("动作", MARGIN + 36, y, paint);
+        canvas.drawText("重量", MARGIN + 170, y, paint);
+        canvas.drawText("次数", MARGIN + 260, y, paint);
+        canvas.drawText("记录时间", MARGIN + 320, y, paint);
+        y += 14;
+        paint.setColor(Color.LTGRAY);
+        canvas.drawLine(MARGIN, y, PAGE_WIDTH - MARGIN, y, paint);
+        y += 12;
+        paint.setColor(Color.BLACK);
+        int index = 1;
+        for (StrengthSet set : sets) {
+            canvas.drawText(String.valueOf(index++), MARGIN, y, paint);
+            canvas.drawText(truncate(set.exerciseName, 12), MARGIN + 36, y, paint);
+            canvas.drawText(set.displayWeight(), MARGIN + 170, y, paint);
+            canvas.drawText(String.valueOf(set.reps), MARGIN + 260, y, paint);
+            canvas.drawText(dateTime(set.timestampMillis), MARGIN + 320, y, paint);
+            y += 16;
+            if (y > PAGE_HEIGHT - MARGIN) {
+                break;
+            }
+        }
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null) {
+            return "";
+        }
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength - 1) + "…";
     }
 
     private static void drawSectionTitle(Canvas canvas, Paint paint, String title, int y) {

@@ -14,6 +14,7 @@ public final class WorkoutSession {
     public final long startMillis;
     public long endMillis;
     private final ArrayList<HeartRateSample> samples = new ArrayList<>();
+    private final ArrayList<StrengthSet> strengthSets = new ArrayList<>();
 
     public WorkoutSession(String id, long startMillis, long endMillis) {
         this.id = id;
@@ -48,6 +49,14 @@ public final class WorkoutSession {
         return Collections.unmodifiableList(samples);
     }
 
+    public void addStrengthSet(StrengthSet set) {
+        strengthSets.add(set);
+    }
+
+    public List<StrengthSet> strengthSets() {
+        return Collections.unmodifiableList(strengthSets);
+    }
+
     public JSONObject toJson() throws JSONException {
         JSONObject json = new JSONObject();
         json.put("id", id);
@@ -58,6 +67,11 @@ public final class WorkoutSession {
             array.put(sample.toJson());
         }
         json.put("samples", array);
+        JSONArray strengthArray = new JSONArray();
+        for (StrengthSet set : strengthSets) {
+            strengthArray.put(set.toJson());
+        }
+        json.put("strengthSets", strengthArray);
         return json;
     }
 
@@ -72,6 +86,15 @@ public final class WorkoutSession {
                 JSONObject item = array.optJSONObject(i);
                 if (item != null) {
                     session.addSample(HeartRateSample.fromJson(item));
+                }
+            }
+        }
+        JSONArray strengthArray = json.optJSONArray("strengthSets");
+        if (strengthArray != null) {
+            for (int i = 0; i < strengthArray.length(); i++) {
+                JSONObject item = strengthArray.optJSONObject(i);
+                if (item != null) {
+                    session.addStrengthSet(StrengthSet.fromJson(item));
                 }
             }
         }
