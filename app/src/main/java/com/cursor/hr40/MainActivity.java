@@ -65,10 +65,13 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private TextView caloriesText;
     private LinearLayout durationSection;
     private LinearLayout caloriesSection;
+    private MaterialButton scanButton;
     private MaterialButton startButton;
     private MaterialButton endButton;
     private MaterialButton exportButton;
     private MaterialButton rawExportButton;
+    private MaterialButton exerciseManageButton;
+    private MaterialButton editProfileButton;
     private MaterialCardView strengthPanel;
     private Spinner exerciseSpinner;
     private ArrayAdapter<String> exerciseAdapter;
@@ -205,7 +208,7 @@ heartRateManager = new BleHeartRateManager(this, this);
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v3.3.1");
+        title.setText("HR40 离线运动监测 v3.3.2");
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -276,7 +279,8 @@ heartRateManager = new BleHeartRateManager(this, this);
         root.setPadding(dp(20), dp(8), dp(20), dp(24));
         scrollView.addView(root, matchWrap());
 
-        root.addView(materialButton("扫描并连接 HR40", v -> scanOrRequestPermissions()), matchWrap());
+        scanButton = materialButton("扫描并连接 HR40", v -> scanOrRequestPermissions());
+        root.addView(scanButton, matchWrap());
 
         startButton = materialButton("开始运动", v -> handleStartPauseButton());
         root.addView(startButton, matchWrap());
@@ -291,8 +295,10 @@ heartRateManager = new BleHeartRateManager(this, this);
         rawExportButton = materialButton("导出原始训练数据(JSON)", v -> exportRawWorkoutData());
         root.addView(rawExportButton, matchWrap());
 
-        root.addView(materialButton("动作管理", v -> showExerciseManagementDialog()), matchWrap());
-        root.addView(materialButton("编辑运动人员资料", v -> showProfileDialog(true)), matchWrap());
+        exerciseManageButton = materialButton("动作管理", v -> showExerciseManagementDialog());
+        root.addView(exerciseManageButton, matchWrap());
+        editProfileButton = materialButton("编辑运动人员资料", v -> showProfileDialog(true));
+        root.addView(editProfileButton, matchWrap());
 
         strengthPanel = card();
         strengthPanel.setVisibility(View.GONE);
@@ -758,6 +764,10 @@ heartRateManager = new BleHeartRateManager(this, this);
         rawExportButton.setEnabled(true);
 
         boolean inWorkout = activeSession != null;
+        exportButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        rawExportButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        exerciseManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         if (!inWorkout) {
             startButton.setText("开始运动");
         } else if (workoutPaused) {
