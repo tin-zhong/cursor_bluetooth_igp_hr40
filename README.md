@@ -26,10 +26,15 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 为了便于平板测试，当前分支还提交了一份已构建的 Debug APK：
 
 ```text
-dist/hr40-offline-fitness-debug.apk
+dist/hr40-offline-fitness-v1.1.0.apk
 ```
 
 下载该 APK 到一加平板 2 Pro 后，允许“安装未知来源应用”即可安装测试。
+
+## 安装注意
+
+如果安装后界面没有变化，请先卸载旧版 App，再安装 `dist/hr40-offline-fitness-v1.1.0.apk`。
+打开 App 后标题应显示 **HR40 离线运动监测 v1.1.0**，并能看到“运动时长”和“力量训练”区域。
 
 ## 权限
 

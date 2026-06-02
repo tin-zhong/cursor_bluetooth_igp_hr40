@@ -152,7 +152,7 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         scrollView.addView(root);
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测");
+        title.setText("HR40 离线运动监测 v1.1.0");
         title.setTextSize(24f);
         title.setTextColor(Color.rgb(18, 52, 86));
         title.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -169,8 +169,13 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         bpmText.setGravity(Gravity.CENTER_HORIZONTAL);
         root.addView(bpmText, matchWrap());
 
+        TextView durationLabel = label("运动时长");
+        durationLabel.setGravity(Gravity.CENTER_HORIZONTAL);
+        durationLabel.setTextColor(Color.DKGRAY);
+        root.addView(durationLabel, matchWrap());
+
         durationText = new TextView(this);
-        durationText.setText("--");
+        durationText.setText("00:00");
         durationText.setTextSize(64f);
         durationText.setTextColor(Color.BLACK);
         durationText.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -199,9 +204,8 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
 
         strengthPanel = new LinearLayout(this);
         strengthPanel.setOrientation(LinearLayout.VERTICAL);
-        strengthPanel.setVisibility(View.GONE);
 
-        TextView strengthTitle = label("力量训练");
+        TextView strengthTitle = label("力量训练（开始运动后记录）");
         strengthTitle.setTextColor(Color.rgb(21, 101, 192));
         strengthPanel.addView(strengthTitle, matchWrap());
 
@@ -487,10 +491,8 @@ public final class MainActivity extends Activity implements BleHeartRateManager.
         endButton.setEnabled(activeSession != null);
         exportButton.setEnabled(displaySession != null
                 && (!displaySession.samples().isEmpty() || !displaySession.strengthSets().isEmpty()));
-        strengthPanel.setVisibility(activeSession == null ? View.GONE : View.VISIBLE);
-
         if (activeSession == null) {
-            durationText.setText("--");
+            durationText.setText("00:00");
         } else {
             durationText.setText(formatDuration(activeSession.durationMillis()));
         }
