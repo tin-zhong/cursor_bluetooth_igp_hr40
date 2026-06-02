@@ -15,8 +15,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +28,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Room-backed workout storage. Legacy JSON files are imported once, then removed.
+ * Workouts are buffered as JSON while in progress. When a session finishes,
+ * the JSON snapshot is committed into Room and the JSON file is removed.
  */
 public final class WorkoutRepository {
     private static final String DIR_NAME = "workouts";
@@ -36,7 +39,20 @@ public final class WorkoutRepository {
     private WorkoutRepository() {
     }
 
-    public static void save(Context context, WorkoutSession session) {
+    /** Persist in-progress workout to a local JSON file. */
+    public static void saveJson(Context context, WorkoutSession session) throws IOException, JSONException {
+        File dir = workoutsDir(context);
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IOException("Unable to create workout directory");
+        }
+        File file = new File(dir, session.id + ".json");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            writer.write(session.toJson().toString(2));
+        }
+    }
+
+    /** Write a completed workout into Room (used after finish). */
+    public static void saveToDatabase(Context context, WorkoutSession session) {
         WorkoutDao dao = WorkoutDatabase.getInstance(context).workoutDao();
 
         WorkoutRecordEntity workout = new WorkoutRecordEntity();
@@ -61,11 +77,29 @@ public final class WorkoutRepository {
         }
     }
 
+    /**
+     * Finalize workout: write JSON, import into Room, then remove the JSON file.
+     */
+    public static void archiveFinishedSession(Context context, WorkoutSession session)
+            throws IOException, JSONException {
+        saveJson(context, session);
+        saveToDatabase(context, session);
+        deleteJson(context, session.id);
+    }
+
+    public static void deleteJson(Context context, String sessionId) {
+        File file = new File(workoutsDir(context), sessionId + ".json");
+        if (file.exists()) {
+            file.delete();
+        }
+    }
+
     public static WorkoutSession loadLatest(Context context) {
         List<WorkoutSession> sessions = loadAll(context);
         return sessions.isEmpty() ? null : sessions.get(0);
     }
 
+    /** Completed workouts stored in Room. */
     public static List<WorkoutSession> loadAll(Context context) {
         migrateLegacyJsonIfNeeded(context);
         List<WorkoutSession> sessions = new ArrayList<>();
@@ -83,13 +117,14 @@ public final class WorkoutRepository {
         return WorkoutDatabase.getInstance(context).workoutDao().loadAllWorkoutsWithDetails();
     }
 
+    /** One-time import for JSON files left from older app versions. */
     public static void migrateLegacyJsonIfNeeded(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_META, Context.MODE_PRIVATE);
         if (prefs.getBoolean(KEY_JSON_MIGRATED, false)) {
             return;
         }
 
-        File dir = legacyWorkoutsDir(context);
+        File dir = workoutsDir(context);
         File[] files = dir.listFiles((file, name) -> name.endsWith(".json"));
         if (files != null && files.length > 0) {
             Arrays.sort(files, Comparator.comparingLong(File::lastModified));
@@ -101,16 +136,14 @@ public final class WorkoutRepository {
             }
             for (File file : files) {
                 try {
-                    WorkoutSession session = readLegacyJson(file);
-                    if (session != null && !existingIds.contains(session.id)) {
-                        save(context, session);
+                    WorkoutSession session = readJson(file);
+                    if (session != null && session.endMillis > 0L && !existingIds.contains(session.id)) {
+                        saveToDatabase(context, session);
                         existingIds.add(session.id);
                     }
                 } catch (IOException ignored) {
                     // Skip invalid legacy files.
                 }
-            }
-            for (File file : files) {
                 file.delete();
             }
         }
@@ -118,7 +151,7 @@ public final class WorkoutRepository {
         prefs.edit().putBoolean(KEY_JSON_MIGRATED, true).apply();
     }
 
-    private static WorkoutSession readLegacyJson(File file) throws IOException {
+    private static WorkoutSession readJson(File file) throws IOException {
         StringBuilder builder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
@@ -129,11 +162,11 @@ public final class WorkoutRepository {
         try {
             return WorkoutSession.fromJson(new JSONObject(builder.toString()));
         } catch (JSONException e) {
-            throw new IOException("Invalid legacy workout file", e);
+            throw new IOException("Invalid workout file", e);
         }
     }
 
-    private static File legacyWorkoutsDir(Context context) {
+    private static File workoutsDir(Context context) {
         return new File(context.getFilesDir(), DIR_NAME);
     }
 }

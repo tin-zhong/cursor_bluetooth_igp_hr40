@@ -199,7 +199,7 @@ heartRateManager = new BleHeartRateManager(this, this);
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v3.2.0");
+        title.setText("HR40 离线运动监测 v3.2.1");
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -630,7 +630,11 @@ lastCompletedSession = activeSession;
     }
 
     private void persistSessionQuietly(WorkoutSession session) {
-        WorkoutRepository.save(this, session);
+        try {
+            WorkoutRepository.saveJson(this, session);
+        } catch (IOException | JSONException e) {
+            statusText.setText("保存运动记录失败: " + e.getMessage());
+        }
     }
 
     private void exportRawWorkoutData() {
