@@ -927,38 +927,18 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                     updateWorkoutUi();
                     showToast("已清理 " + deleted + " 条历史训练记录");
                 })
-                .setNeutralButton("自动清理设置", (dialog, which) -> showAutoCleanupSettingsDialog())
-                .setNegativeButton("关闭", null)
-                .show();
-    }
-
-    private void showAutoCleanupSettingsDialog() {
-        SharedPreferences prefs = getSharedPreferences(PREFS_META, MODE_PRIVATE);
-        boolean autoEnabled = prefs.getBoolean(KEY_AUTO_CLEANUP_ENABLED, false);
-        int currentDays = prefs.getInt(KEY_RETENTION_DAYS, 30);
-        String[] items = new String[]{
-                "自动清理：" + (autoEnabled ? "已开启" : "已关闭"),
-                "保留周期：" + retentionPeriodLabel(currentDays)
-        };
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("自动清理设置")
-                .setItems(items, (dialog, which) -> {
-                    if (which == 0) {
-                        boolean next = !autoEnabled;
-                        prefs.edit().putBoolean(KEY_AUTO_CLEANUP_ENABLED, next).apply();
-                        showToast(next ? "自动清理已开启" : "自动清理已关闭");
-                        dialog.dismiss();
-                        showAutoCleanupSettingsDialog();
-                    } else {
-                        dialog.dismiss();
-                        showRetentionPeriodPickerDialog(prefs, currentDays);
-                    }
+                .setNeutralButton(autoEnabled ? "自动清理：已开启" : "自动清理：已关闭", (dialog, which) -> {
+                    boolean next = !autoEnabled;
+                    prefs.edit().putBoolean(KEY_AUTO_CLEANUP_ENABLED, next).apply();
+                    showToast(next ? "自动清理已开启" : "自动清理已关闭");
+                    showHistoryManageDialog();
                 })
-                .setNegativeButton("完成", null)
+                .setNegativeButton("保留周期：" + retentionPeriodLabel(currentDays), (dialog, which) ->
+                        showRetentionPeriodPickerDialog(prefs, currentDays, this::showHistoryManageDialog))
                 .show();
     }
 
-    private void showRetentionPeriodPickerDialog(SharedPreferences prefs, int currentDays) {
+    private void showRetentionPeriodPickerDialog(SharedPreferences prefs, int currentDays, Runnable onSelected) {
         final int[] retentionOptions = new int[]{7, 30, 90, 180, 365};
         final String[] retentionLabels = new String[]{"1 周（7 天）", "1 个月（30 天）", "3 个月（90 天）", "6 个月（180 天）", "1 年（365 天）"};
         int checked = 1;
@@ -975,7 +955,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                     prefs.edit().putInt(KEY_RETENTION_DAYS, days).apply();
                     showToast("保留周期：" + retentionPeriodLabel(days));
                     dialog.dismiss();
-                    showAutoCleanupSettingsDialog();
+                    if (onSelected != null) {
+                        onSelected.run();
+                    }
                 })
                 .setNegativeButton("取消", null)
                 .show();
