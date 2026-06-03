@@ -74,11 +74,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private boolean reconnectScheduled;
     private boolean heartRateLinkActive;
 
-    private TextView titleText;
     private TextView statusText;
     private TextView bpmText;
     private TextView durationText;
-    private TextView totalDurationText;
     private TextView caloriesText;
     private LinearLayout durationSection;
     private LinearLayout caloriesSection;
@@ -104,7 +102,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private long pauseStartedAtMillis;
     private long pausedDurationMillis;
     private long lastDisplayedDurationSeconds = -1L;
-    private long lastDisplayedTotalSeconds = -1L;
 
     private static final long UI_SECOND_TICK_MIN_DELAY_MS = 50L;
     private static final long MAINTENANCE_INTERVAL_MS = 60_000L;
@@ -112,7 +109,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private final Runnable uiSecondTick = new Runnable() {
         @Override
         public void run() {
-            if (activeSession != null) {
+            if (activeSession != null && !workoutPaused) {
                 updateWorkoutElapsedDisplay();
             }
             scheduleNextUiSecondTick();
@@ -243,71 +240,67 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         fixedSection.setOrientation(LinearLayout.VERTICAL);
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
-        titleText = new TextView(this);
-        titleText.setText("HR40 离线运动监测 v" + appVersionName());
+        TextView title = new TextView(this);
+        title.setText("HR40 离线运动监测 v" + appVersionName());
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
-        titleText.setLayoutParams(titleParams);
-        titleText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
-        titleText.setTextColor(getColor(R.color.md_primary));
-        titleText.setGravity(Gravity.CENTER_HORIZONTAL);
-        fixedSection.addView(titleText, matchWrap());
+        title.setLayoutParams(titleParams);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
+        title.setTextColor(getColor(R.color.md_primary));
+        title.setGravity(Gravity.CENTER_HORIZONTAL);
+        fixedSection.addView(title, matchWrap());
 
         statusText = textView("未连接心率带");
         statusText.setGravity(Gravity.CENTER_HORIZONTAL);
         statusText.setTextColor(Color.DKGRAY);
-        statusText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
         LinearLayout.LayoutParams statusParams = matchWrap();
-        statusParams.bottomMargin = dp(6);
+        statusParams.bottomMargin = dp(12);
         fixedSection.addView(statusText, statusParams);
 
         MaterialCardView metricsCard = card();
-        metricsCard.setContentPadding(dp(10), dp(6), dp(10), dp(6));
         LinearLayout metricsContent = verticalLayout();
         metricsCard.addView(metricsContent);
 
         bpmText = new TextView(this);
         bpmText.setText("--");
-        bpmText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40f);
+        bpmText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f);
         bpmText.setTextColor(Color.GRAY);
         bpmText.setGravity(Gravity.CENTER_HORIZONTAL);
-        bpmText.setPadding(0, 0, 0, 0);
         metricsContent.addView(bpmText, matchWrap());
+
+        durationSection = verticalLayout();
+        TextView durationLabel = textView("运动时长");
+        durationLabel.setGravity(Gravity.CENTER_HORIZONTAL);
+        durationLabel.setTextColor(Color.DKGRAY);
+        durationSection.addView(durationLabel, matchWrap());
+        durationText = new TextView(this);
+        durationText.setText("00:00");
+        durationText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f);
+        durationText.setTextColor(Color.BLACK);
+        durationText.setGravity(Gravity.CENTER_HORIZONTAL);
+        durationSection.addView(durationText, matchWrap());
+        durationSection.setVisibility(View.GONE);
+        metricsContent.addView(durationSection, matchWrap());
+
+        caloriesSection = verticalLayout();
+        TextView caloriesLabel = textView("估算消耗");
+        caloriesLabel.setGravity(Gravity.CENTER_HORIZONTAL);
+        caloriesLabel.setTextColor(Color.DKGRAY);
+        caloriesSection.addView(caloriesLabel, matchWrap());
+        caloriesText = new TextView(this);
+        caloriesText.setText("0.0 kcal");
+        caloriesText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f);
+        caloriesText.setTextColor(getColor(R.color.md_secondary));
+        caloriesText.setGravity(Gravity.CENTER_HORIZONTAL);
+        caloriesSection.addView(caloriesText, matchWrap());
+        caloriesSection.setVisibility(View.GONE);
+        metricsContent.addView(caloriesSection, matchWrap());
 
         TextView bpmLabel = textView("bpm");
         bpmLabel.setGravity(Gravity.CENTER_HORIZONTAL);
         bpmLabel.setTextColor(Color.DKGRAY);
-        bpmLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
-        bpmLabel.setPadding(0, 0, 0, dp(4));
         metricsContent.addView(bpmLabel, matchWrap());
-
-        durationSection = new LinearLayout(this);
-        durationSection.setOrientation(LinearLayout.HORIZONTAL);
-        durationSection.setVisibility(View.GONE);
-        durationText = metricValueText("00:00");
-        totalDurationText = metricValueText("00:00");
-        durationSection.addView(metricColumn("运动", durationText), weighted());
-        durationSection.addView(metricColumn("总计", totalDurationText), weighted());
-        metricsContent.addView(durationSection, matchWrap());
-
-        caloriesSection = new LinearLayout(this);
-        caloriesSection.setOrientation(LinearLayout.HORIZONTAL);
-        caloriesSection.setGravity(Gravity.CENTER_VERTICAL);
-        caloriesSection.setVisibility(View.GONE);
-        TextView caloriesLabel = textView("消耗");
-        caloriesLabel.setTextColor(Color.DKGRAY);
-        caloriesLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-        caloriesLabel.setPadding(0, dp(2), dp(6), dp(2));
-        caloriesSection.addView(caloriesLabel, wrapContent());
-        caloriesText = new TextView(this);
-        caloriesText.setText("0.0 kcal");
-        caloriesText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f);
-        caloriesText.setTextColor(getColor(R.color.md_secondary));
-        caloriesText.setPadding(0, dp(2), 0, dp(2));
-        caloriesSection.addView(caloriesText, wrapContent());
-        metricsContent.addView(caloriesSection, matchWrap());
-
         fixedSection.addView(metricsCard, matchWrap());
 
         ScrollView scrollView = new ScrollView(this);
@@ -440,6 +433,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         pauseStartedAtMillis = System.currentTimeMillis();
         statusText.setText("运动已暂停");
         showToast("已暂停运动");
+        stopUiSecondTick();
         updateWorkoutUi();
     }
 
@@ -453,6 +447,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         statusText.setText("运动已继续");
         showToast("已继续运动");
         lastDisplayedDurationSeconds = -1L;
+        startUiSecondTick();
         updateWorkoutUi();
     }
 
@@ -1099,19 +1094,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         return Math.max(0L, seconds);
     }
 
-    /** 自开始运动起经过的整秒数（含暂停），与系统时钟对齐。 */
-    private long currentTotalDurationClockSeconds() {
-        if (activeSession == null) {
-            return 0L;
-        }
-        long nowSecond = System.currentTimeMillis() / 1000L;
-        long startSecond = activeSession.startMillis / 1000L;
-        return Math.max(0L, nowSecond - startSecond);
-    }
-
     private void startUiSecondTick() {
         lastDisplayedDurationSeconds = -1L;
-        lastDisplayedTotalSeconds = -1L;
         handler.removeCallbacks(uiSecondTick);
         scheduleNextUiSecondTick();
     }
@@ -1124,15 +1108,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         if (activeSession == null) {
             return;
         }
-        long sportSeconds = currentWorkoutDurationClockSeconds();
-        if (sportSeconds != lastDisplayedDurationSeconds) {
-            lastDisplayedDurationSeconds = sportSeconds;
-            durationText.setText(formatDuration(sportSeconds * 1000L));
-        }
-        long totalSeconds = currentTotalDurationClockSeconds();
-        if (totalSeconds != lastDisplayedTotalSeconds) {
-            lastDisplayedTotalSeconds = totalSeconds;
-            totalDurationText.setText(formatDuration(totalSeconds * 1000L));
+        long seconds = currentWorkoutDurationClockSeconds();
+        if (seconds != lastDisplayedDurationSeconds) {
+            lastDisplayedDurationSeconds = seconds;
+            durationText.setText(formatDuration(seconds * 1000L));
         }
         caloriesText.setText(String.format(Locale.US, "%.1f kcal",
                 EnergyEstimator.estimateCalories(profile, activeSession)));
@@ -1170,7 +1149,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         fileManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         historyManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
-        titleText.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         if (!inWorkout) {
             startButton.setText("开始运动");
         } else if (workoutPaused) {
@@ -1184,7 +1162,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
             updateWorkoutElapsedDisplay();
         } else {
             lastDisplayedDurationSeconds = -1L;
-            lastDisplayedTotalSeconds = -1L;
             caloriesText.setText("0.0 kcal");
         }
 
@@ -1455,30 +1432,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         view.setTextColor(Color.BLACK);
         view.setPadding(0, dp(6), 0, dp(6));
         return view;
-    }
-
-    private TextView metricValueText(String initial) {
-        TextView view = new TextView(this);
-        view.setText(initial);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
-        view.setTextColor(Color.BLACK);
-        view.setGravity(Gravity.CENTER_HORIZONTAL);
-        view.setPadding(0, dp(2), 0, dp(2));
-        return view;
-    }
-
-    private LinearLayout metricColumn(String label, TextView valueView) {
-        LinearLayout column = new LinearLayout(this);
-        column.setOrientation(LinearLayout.VERTICAL);
-        column.setGravity(Gravity.CENTER_HORIZONTAL);
-        TextView labelView = textView(label);
-        labelView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-        labelView.setTextColor(Color.DKGRAY);
-        labelView.setGravity(Gravity.CENTER_HORIZONTAL);
-        labelView.setPadding(0, dp(2), 0, 0);
-        column.addView(labelView, matchWrap());
-        column.addView(valueView, matchWrap());
-        return column;
     }
 
     private LinearLayout verticalLayout() {
