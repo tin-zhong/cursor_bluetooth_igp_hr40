@@ -28,10 +28,10 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 为了便于平板测试，请安装 `dist/` 中最新版本 APK：
 
 ```text
-dist/hr40-offline-fitness-v3.4.7.apk
+dist/hr40-offline-fitness-v3.4.8.apk
 ```
 
-下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-v3.4.7.apk` → **Download raw file**。
+下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-v3.4.8.apk` → **Download raw file**。
 
 ## v3.4.8 更新
 
@@ -136,9 +136,9 @@ dist/hr40-offline-fitness-v3.4.7.apk
 
 ## 安装与升级
 
-- 从 **v3.4.5** 升级：安装 `dist/hr40-offline-fitness-v3.4.7.apk`（需与 v3.4.5 相同签名证书构建）。若提示**签名冲突**，说明安装包签名不对：请勿使用 v3.4.6；维护者需先按 `keystore/README.md` 提交正确密钥后重新运行 `scripts/build_dist_apk.sh`。
-- 若仍冲突且此前装过错误签名的 v3.4.6：卸载一次后安装 v3.4.7。
-- 安装后标题应显示 **HR40 离线运动监测 v3.4.7**（或 `build.gradle` 中的 `versionName`）。
+- 从 **v3.4.5** 升级：安装 `dist/hr40-offline-fitness-v3.4.8.apk`（需与 v3.4.5 相同签名证书构建）。若提示**签名冲突**，说明安装包签名不对：请勿使用 v3.4.6；维护者需先按 `keystore/README.md` 提交正确密钥后重新运行 `scripts/build_dist_apk.sh`。
+- 若仍冲突且此前装过错误签名的 v3.4.6：卸载一次后安装 v3.4.8。
+- 未开始运动时标题显示 **HR40 离线运动监测 v3.4.8**；开始运动后标题隐藏。
 
 ## 权限
 
