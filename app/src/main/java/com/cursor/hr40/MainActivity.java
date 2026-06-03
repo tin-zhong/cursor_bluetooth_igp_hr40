@@ -225,7 +225,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v3.4.0");
+        title.setText("HR40 离线运动监测 v" + appVersionName());
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -531,15 +531,30 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         showToast("运动已结束，可按需导出 PDF");
     }
 
-    private void showExportSessionDialog() {
+    private List<WorkoutSession> collectExportableSessions() {
         List<WorkoutSession> sessions = WorkoutRepository.loadAll(this);
         List<WorkoutSession> exportableSessions = new ArrayList<>();
-        List<String> labels = new ArrayList<>();
         for (WorkoutSession session : sessions) {
             if (session.samples().isEmpty() && session.strengthSets().isEmpty()) {
                 continue;
             }
             exportableSessions.add(session);
+        }
+        return exportableSessions;
+    }
+
+    private String appVersionName() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
+
+    private void showExportSessionDialog() {
+        List<WorkoutSession> exportableSessions = collectExportableSessions();
+        List<String> labels = new ArrayList<>();
+        for (WorkoutSession session : exportableSessions) {
             labels.add(formatSessionLabel(session));
         }
         if (exportableSessions.isEmpty()) {
