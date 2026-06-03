@@ -25,21 +25,23 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 
 发布包需使用仓库固定签名证书（见 `keystore/README.md`）。`build_dist_apk.sh` 会校验 APK 证书与 v3.4.5 一致后才写入 `dist/`。
 
-为了便于平板测试，请安装 `dist/` 中最新版本 APK，例如：
+为了便于平板测试，请安装 `dist/` 中最新版本 APK：
 
 ```text
 dist/hr40-offline-fitness-v3.4.7.apk
 ```
 
-## v3.4.7 更新
+GitHub 下载：打开仓库 → 分支 `cursor/fix-workout-timer-9f36`（或 `main` 合并后）→ `dist/hr40-offline-fitness-v3.4.7.apk` → **Download raw file**。
 
-- 修复分发包签名不一致：构建脚本固定使用 `keystore/hr40-distribution.keystore`，与 v3.4.5 同证书时可**直接覆盖安装**
-- **请勿安装** `dist/hr40-offline-fitness-v3.4.6.apk`（在临时构建环境签名，与 v3.4.5 冲突）
+若设备上为 v3.4.5 且安装提示签名冲突，请先卸载旧版，或按 `keystore/README.md` 用原证书本地执行 `./scripts/build_dist_apk.sh` 生成可覆盖安装的包。
 
 ## v3.4.7 更新
 
 - 优化运动时长显示：与手机系统时钟整秒同步跳变，刷新时刻对齐下一秒的 0 毫秒
 - 与心率回调解耦，暂停时停止秒级刷新，继续运动后恢复
+- 历史数据管理列表显示修复（合并自 v3.4.6）
+- 分发包签名脚本：`keystore/` + `scripts/build_dist_apk.sh`（与 v3.4.5 同证书时可覆盖安装）
+- **请勿安装** `dist/hr40-offline-fitness-v3.4.6.apk`（签名与 v3.4.5 不一致）
 
 ## v3.4.6 更新
 
