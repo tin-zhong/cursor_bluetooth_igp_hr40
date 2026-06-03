@@ -2,6 +2,14 @@ plugins {
     id "com.android.application"
 }
 
+def distributionKeystorePropertiesFile = rootProject.file("keystore/hr40-distribution.properties")
+def distributionKeystoreProperties = new Properties()
+def distributionKeystoreFile = null
+if (distributionKeystorePropertiesFile.exists()) {
+    distributionKeystoreProperties.load(new FileInputStream(distributionKeystorePropertiesFile))
+    distributionKeystoreFile = rootProject.file("keystore/" + distributionKeystoreProperties["storeFile"])
+}
+
 android {
     namespace "com.cursor.hr40"
     compileSdk 35
@@ -10,8 +18,27 @@ android {
         applicationId "com.cursor.hr40"
         minSdk 26
         targetSdk 35
-        versionCode 21
-        versionName "3.4.6"
+        versionCode 22
+        versionName "3.4.7"
+    }
+
+    signingConfigs {
+        if (distributionKeystoreFile != null && distributionKeystoreFile.exists()) {
+            distribution {
+                storeFile distributionKeystoreFile
+                storePassword distributionKeystoreProperties["storePassword"]
+                keyAlias distributionKeystoreProperties["keyAlias"]
+                keyPassword distributionKeystoreProperties["keyPassword"]
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            if (signingConfigs.findByName("distribution") != null) {
+                signingConfig signingConfigs.distribution
+            }
+        }
     }
 
     compileOptions {
