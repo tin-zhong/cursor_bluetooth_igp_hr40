@@ -22,6 +22,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -901,7 +902,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     private void showHistoryManageDialog() {
-        List<WorkoutSession> sessions = WorkoutRepository.loadAll(this);
+        List<WorkoutSession> sessions = collectExportableSessions();
         if (sessions.isEmpty()) {
             showToast("暂无历史训练记录");
             return;
@@ -910,24 +911,36 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         boolean autoEnabled = prefs.getBoolean(KEY_AUTO_CLEANUP_ENABLED, false);
         int currentDays = prefs.getInt(KEY_RETENTION_DAYS, 30);
 
-        String[] labels = new String[sessions.size()];
-        boolean[] checked = new boolean[sessions.size()];
-        for (int i = 0; i < sessions.size(); i++) {
-            labels[i] = formatSessionLabel(sessions.get(i));
-            checked[i] = false;
-        }
+        ScrollView scrollView = new ScrollView(this);
+        LinearLayout container = verticalLayout();
+        container.setPadding(dp(4), dp(4), dp(4), dp(4));
+        scrollView.addView(container);
+
+        TextView statusView = textView(
+                "共 " + sessions.size() + " 条训练记录。自动清理："
+                        + (autoEnabled ? "已开启" : "已关闭")
+                        + " | 保留周期：" + retentionPeriodLabel(currentDays));
+        statusView.setTextColor(Color.DKGRAY);
+        container.addView(statusView, matchWrap());
+
         Set<Integer> selected = new HashSet<>();
+        for (int i = 0; i < sessions.size(); i++) {
+            final int index = i;
+            CheckBox checkBox = new CheckBox(this);
+            checkBox.setText(formatSessionLabel(sessions.get(index)));
+            checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    selected.add(index);
+                } else {
+                    selected.remove(index);
+                }
+            });
+            container.addView(checkBox, matchWrap());
+        }
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("历史数据管理")
-                .setMessage("自动清理：" + (autoEnabled ? "已开启" : "已关闭") + " | 保留周期：" + retentionPeriodLabel(currentDays))
-                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> {
-                    if (isChecked) {
-                        selected.add(which);
-                    } else {
-                        selected.remove(which);
-                    }
-                })
+                .setView(scrollView)
                 .setPositiveButton("批量清理选中", (dialog, which) -> {
                     if (selected.isEmpty()) {
                         showToast("请先选择要清理的历史记录");

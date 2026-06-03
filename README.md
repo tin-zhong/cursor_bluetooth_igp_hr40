@@ -26,10 +26,15 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 为了便于平板测试，当前分支还提交了一份已构建的 Debug APK：
 
 ```text
-dist/hr40-offline-fitness-v3.4.5.apk
+dist/hr40-offline-fitness-v3.4.6.apk
 ```
 
 下载该 APK 到一加平板 2 Pro 后，允许“安装未知来源应用”即可安装测试。
+
+## v3.4.6 更新
+
+- 修复历史数据管理对话框中训练记录列表不显示的问题（避免 `setMessage` 与多选列表冲突）
+- 历史列表与「导出运动记录 PDF」使用相同的可导出记录范围
 
 ## v3.4.2 更新
 
@@ -109,10 +114,10 @@ dist/hr40-offline-fitness-v3.4.5.apk
 - `y`：新增功能时 +1
 - `z`：仅页面/UI 调整时 +1
 
-当前版本：`3.4.5`
+当前版本：`3.4.6`
 - `x=3`：Keytel 算法增加“力量模式 0.88 修正系数”
 - `y=2`：训练记录全面切换为 Room 存储（含 JSON 迁移）
-- `z=3`：版本显示与历史列表一致性修复
+- `z=4`：历史数据管理列表显示修复
 
 ## 安装注意
 
