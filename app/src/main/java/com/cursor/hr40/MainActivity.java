@@ -1062,14 +1062,36 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         return Math.max(0L, duration);
     }
 
+    /**
+     * 与手机系统时钟整秒对齐：在下一秒的 0 毫秒时刻触发刷新。
+     */
     private void scheduleNextUiSecondTick() {
         long now = System.currentTimeMillis();
-        long delay = 1000L - (now % 1000L);
+        long nextSecondMillis = ((now / 1000L) + 1L) * 1000L;
+        long delay = nextSecondMillis - now;
         if (delay < UI_SECOND_TICK_MIN_DELAY_MS) {
             delay += 1000L;
         }
         handler.removeCallbacks(uiSecondTick);
         handler.postDelayed(uiSecondTick, delay);
+    }
+
+    /**
+     * 按系统时钟走过的整秒数计算运动时长（与状态栏时钟秒针同步跳变）。
+     * 归档、导出仍使用 {@link #currentWorkoutDurationMillis()} 的毫秒精度。
+     */
+    private long currentWorkoutDurationClockSeconds() {
+        if (activeSession == null) {
+            return 0L;
+        }
+        long nowSecond = System.currentTimeMillis() / 1000L;
+        long startSecond = activeSession.startMillis / 1000L;
+        long pausedSeconds = pausedDurationMillis / 1000L;
+        long seconds = nowSecond - startSecond - pausedSeconds;
+        if (workoutPaused) {
+            seconds -= (nowSecond - (pauseStartedAtMillis / 1000L));
+        }
+        return Math.max(0L, seconds);
     }
 
     private void startUiSecondTick() {
@@ -1086,11 +1108,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         if (activeSession == null) {
             return;
         }
-        long elapsed = currentWorkoutDurationMillis();
-        long seconds = elapsed / 1000L;
+        long seconds = currentWorkoutDurationClockSeconds();
         if (seconds != lastDisplayedDurationSeconds) {
             lastDisplayedDurationSeconds = seconds;
-            durationText.setText(formatDuration(elapsed));
+            durationText.setText(formatDuration(seconds * 1000L));
         }
         caloriesText.setText(String.format(Locale.US, "%.1f kcal",
                 EnergyEstimator.estimateCalories(profile, activeSession)));
