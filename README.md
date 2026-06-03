@@ -20,21 +20,27 @@
 export ANDROID_HOME="$HOME/android-sdk"
 export ANDROID_SDK_ROOT="$HOME/android-sdk"
 export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
-./gradlew assembleDebug
+./scripts/build_dist_apk.sh
 ```
 
-为了便于平板测试，当前分支还提交了一份已构建的 Debug APK：
+发布包需使用仓库固定签名证书（见 `keystore/README.md`）。`build_dist_apk.sh` 会校验 APK 证书与 v3.4.5 一致后才写入 `dist/`。
+
+为了便于平板测试，请安装 `dist/` 中最新版本 APK，例如：
 
 ```text
-dist/hr40-offline-fitness-v3.4.6.apk
+dist/hr40-offline-fitness-v3.4.7.apk
 ```
 
-下载该 APK 到一加平板 2 Pro 后，允许“安装未知来源应用”即可安装测试。
+## v3.4.7 更新
+
+- 修复分发包签名不一致：构建脚本固定使用 `keystore/hr40-distribution.keystore`，与 v3.4.5 同证书时可**直接覆盖安装**
+- **请勿安装** `dist/hr40-offline-fitness-v3.4.6.apk`（在临时构建环境签名，与 v3.4.5 冲突）
 
 ## v3.4.6 更新
 
 - 修复历史数据管理对话框中训练记录列表不显示的问题（避免 `setMessage` 与多选列表冲突）
 - 历史列表与「导出运动记录 PDF」使用相同的可导出记录范围
+- 注意：已发布的 v3.4.6 APK 签名与 v3.4.5 不一致，请改用 v3.4.7
 
 ## v3.4.2 更新
 
@@ -114,15 +120,16 @@ dist/hr40-offline-fitness-v3.4.6.apk
 - `y`：新增功能时 +1
 - `z`：仅页面/UI 调整时 +1
 
-当前版本：`3.4.6`
+当前版本：`3.4.7`
 - `x=3`：Keytel 算法增加“力量模式 0.88 修正系数”
 - `y=2`：训练记录全面切换为 Room 存储（含 JSON 迁移）
-- `z=4`：历史数据管理列表显示修复
+- `z=5`：分发包固定签名，避免覆盖安装冲突
 
-## 安装注意
+## 安装与升级
 
-如果安装后界面没有变化，请先卸载旧版 App，再安装 `dist/hr40-offline-fitness-v3.4.5.apk`。
-打开 App 后标题应显示 **HR40 离线运动监测 v3.2.0**。
+- 从 **v3.4.5** 升级：安装 `dist/hr40-offline-fitness-v3.4.7.apk`（需与 v3.4.5 相同签名证书构建）。若提示**签名冲突**，说明安装包签名不对：请勿使用 v3.4.6；维护者需先按 `keystore/README.md` 提交正确密钥后重新运行 `scripts/build_dist_apk.sh`。
+- 若仍冲突且此前装过错误签名的 v3.4.6：卸载一次后安装 v3.4.7。
+- 安装后标题应显示 **HR40 离线运动监测 v3.4.7**（或 `build.gradle` 中的 `versionName`）。
 
 ## 权限
 
