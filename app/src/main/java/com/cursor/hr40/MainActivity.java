@@ -101,13 +101,26 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private boolean workoutPaused;
     private long pauseStartedAtMillis;
     private long pausedDurationMillis;
+    private long lastDisplayedDurationSeconds = -1L;
 
-    private final Runnable ticker = new Runnable() {
+    private static final long UI_SECOND_TICK_MIN_DELAY_MS = 50L;
+    private static final long MAINTENANCE_INTERVAL_MS = 60_000L;
+
+    private final Runnable uiSecondTick = new Runnable() {
         @Override
         public void run() {
-            updateWorkoutUi();
-        runAutoHistoryCleanupIfNeeded();
-            handler.postDelayed(this, 1000L);
+            if (activeSession != null && !workoutPaused) {
+                updateWorkoutElapsedDisplay();
+            }
+            scheduleNextUiSecondTick();
+        }
+    };
+
+    private final Runnable maintenanceTick = new Runnable() {
+        @Override
+        public void run() {
+            runAutoHistoryCleanupIfNeeded();
+            handler.postDelayed(this, MAINTENANCE_INTERVAL_MS);
         }
     };
 
@@ -125,7 +138,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         } else if (shouldForceWeeklyWeightUpdate()) {
             showWeeklyWeightDialog();
         }
-        handler.post(ticker);
+        handler.post(maintenanceTick);
+        if (activeSession != null) {
+            startUiSecondTick();
+        }
     }
 
     @Override
@@ -179,7 +195,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                 persistSessionQuietly(activeSession);
             }
         }
-        updateWorkoutUi();
     }
 
     @Override
@@ -418,6 +433,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         pauseStartedAtMillis = System.currentTimeMillis();
         statusText.setText("运动已暂停");
         showToast("已暂停运动");
+        stopUiSecondTick();
         updateWorkoutUi();
     }
 
@@ -430,6 +446,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         pauseStartedAtMillis = 0L;
         statusText.setText("运动已继续");
         showToast("已继续运动");
+        lastDisplayedDurationSeconds = -1L;
+        startUiSecondTick();
         updateWorkoutUi();
     }
 
@@ -463,6 +481,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         statusText.setText(WorkoutSession.TYPE_STRENGTH.equals(workoutType)
                 ? "力量训练已开始，等待 HR40 心率数据..."
                 : "有氧训练已开始，等待 HR40 心率数据...");
+        startUiSecondTick();
         updateWorkoutUi();
     }
 
@@ -528,6 +547,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         lastCompletedSession = activeSession;
         activeSession = null;
         pausedDurationMillis = 0L;
+        stopUiSecondTick();
         updateWorkoutUi();
         showToast("运动已结束，可按需导出 PDF");
     }
@@ -1042,6 +1062,61 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         return Math.max(0L, duration);
     }
 
+    /**
+     * 与手机系统时钟整秒对齐：在下一秒的 0 毫秒时刻触发刷新。
+     */
+    private void scheduleNextUiSecondTick() {
+        long now = System.currentTimeMillis();
+        long nextSecondMillis = ((now / 1000L) + 1L) * 1000L;
+        long delay = nextSecondMillis - now;
+        if (delay < UI_SECOND_TICK_MIN_DELAY_MS) {
+            delay += 1000L;
+        }
+        handler.removeCallbacks(uiSecondTick);
+        handler.postDelayed(uiSecondTick, delay);
+    }
+
+    /**
+     * 按系统时钟走过的整秒数计算运动时长（与状态栏时钟秒针同步跳变）。
+     * 归档、导出仍使用 {@link #currentWorkoutDurationMillis()} 的毫秒精度。
+     */
+    private long currentWorkoutDurationClockSeconds() {
+        if (activeSession == null) {
+            return 0L;
+        }
+        long nowSecond = System.currentTimeMillis() / 1000L;
+        long startSecond = activeSession.startMillis / 1000L;
+        long pausedSeconds = pausedDurationMillis / 1000L;
+        long seconds = nowSecond - startSecond - pausedSeconds;
+        if (workoutPaused) {
+            seconds -= (nowSecond - (pauseStartedAtMillis / 1000L));
+        }
+        return Math.max(0L, seconds);
+    }
+
+    private void startUiSecondTick() {
+        lastDisplayedDurationSeconds = -1L;
+        handler.removeCallbacks(uiSecondTick);
+        scheduleNextUiSecondTick();
+    }
+
+    private void stopUiSecondTick() {
+        handler.removeCallbacks(uiSecondTick);
+    }
+
+    private void updateWorkoutElapsedDisplay() {
+        if (activeSession == null) {
+            return;
+        }
+        long seconds = currentWorkoutDurationClockSeconds();
+        if (seconds != lastDisplayedDurationSeconds) {
+            lastDisplayedDurationSeconds = seconds;
+            durationText.setText(formatDuration(seconds * 1000L));
+        }
+        caloriesText.setText(String.format(Locale.US, "%.1f kcal",
+                EnergyEstimator.estimateCalories(profile, activeSession)));
+    }
+
     private String formatSessionLabel(WorkoutSession session) {
         String type = WorkoutSession.TYPE_STRENGTH.equals(session.workoutType) ? "力量" : "有氧";
         String start = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
@@ -1084,10 +1159,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         durationSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         caloriesSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         if (inWorkout) {
-            durationText.setText(formatDuration(currentWorkoutDurationMillis()));
-            caloriesText.setText(String.format(Locale.US, "%.1f kcal",
-                    EnergyEstimator.estimateCalories(profile, activeSession)));
+            updateWorkoutElapsedDisplay();
         } else {
+            lastDisplayedDurationSeconds = -1L;
             caloriesText.setText("0.0 kcal");
         }
 
