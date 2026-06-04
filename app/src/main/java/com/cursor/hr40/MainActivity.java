@@ -29,8 +29,6 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.cursor.hr40.db.WorkoutRecordMapper;
-import com.cursor.hr40.db.WorkoutWithDetails;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
@@ -86,7 +84,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private MaterialButton exportButton;
     private MaterialButton detailViewButton;
     private MaterialButton countdownButton;
-    private MaterialButton rawExportButton;
     private MaterialButton exerciseManageButton;
     private MaterialButton editProfileButton;
     private MaterialButton fileManageButton;
@@ -341,9 +338,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
         detailViewButton = materialButton("查看运动明细", v -> showWorkoutDetailPickerDialog());
         root.addView(detailViewButton, matchWrap());
-
-        rawExportButton = materialButton("导出原始训练数据(JSON)", v -> exportRawWorkoutData());
-        root.addView(rawExportButton, matchWrap());
 
         exerciseManageButton = materialButton("动作管理", v -> showExerciseManagementDialog());
         root.addView(exerciseManageButton, matchWrap());
@@ -960,42 +954,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         }
     }
 
-    private void exportRawWorkoutData() {
-        List<WorkoutWithDetails> details = WorkoutRepository.loadAllWithDetails(this);
-        List<WorkoutWithDetails> exportable = new ArrayList<>();
-        List<String> labels = new ArrayList<>();
-        for (WorkoutWithDetails item : details) {
-            WorkoutSession session = WorkoutRecordMapper.toSession(item);
-            if (session == null || (session.samples().isEmpty() && session.strengthSets().isEmpty())) {
-                continue;
-            }
-            exportable.add(item);
-            labels.add(formatSessionLabel(session));
-        }
-        if (exportable.isEmpty()) {
-            showToast("数据库暂无可导出的训练数据");
-            return;
-        }
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("选择要导出的原始数据")
-                .setItems(labels.toArray(new String[0]), (dialog, which) -> exportRawSingle(exportable.get(which)))
-                .show();
-    }
-
-    private void exportRawSingle(WorkoutWithDetails details) {
-        try {
-            Uri uri = RawDataExporter.exportSingle(this, details);
-            showToast("原始数据已导出");
-            Intent share = new Intent(Intent.ACTION_SEND);
-            share.setType("application/json");
-            share.putExtra(Intent.EXTRA_STREAM, uri);
-            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(share, "分享 HR40 原始训练数据"));
-        } catch (IOException e) {
-            showToast("导出原始数据失败: " + e.getMessage());
-        }
-    }
-
     private static final class ExportedFileItem {
         Uri uri;
         String name;
@@ -1333,12 +1291,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         endButton.setEnabled(endEnabled);
         updateEndButtonStyle(endEnabled);
         exportButton.setEnabled(true);
-        rawExportButton.setEnabled(true);
 
         boolean inWorkout = activeSession != null;
         exportButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         detailViewButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
-        rawExportButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         exerciseManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         fileManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
