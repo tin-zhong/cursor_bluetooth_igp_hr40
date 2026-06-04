@@ -4,7 +4,7 @@
 
 | 文件 | 签名线 |
 |------|--------|
-| `hr40-offline-fitness-v3.5.0.apk` 及之后新版本 | **v3.5.0 线**（仓库 `keystore/hr40-distribution.keystore`） |
+| `hr40-offline-fitness-v3.5.0.apk` 及之后新版本（含 v3.5.1） | **v3.5.0 线**（仓库 `keystore/hr40-distribution.keystore`） |
 
 证书 SHA-256：`7ca2098facb2297a447c1730d1731a3f89b74cb35f9f46ca8dc12bc10f02dd51`
 
@@ -19,7 +19,7 @@
 | `v3.4.6` … `v3.4.8`、`v3.10.0` | `4cfb9b40…` |
 | `v3.4.0` … `v3.4.5` | `87fbddbb…` |
 
-卸载后安装 `dist/hr40-offline-fitness-v3.5.0.apk`（或更新版本）。本地运动数据在应用私有目录，卸载会清除数据，必要时请先导出 PDF/JSON。
+卸载后安装 `dist/hr40-offline-fitness-v3.5.1.apk`（或同签名线的更新版本）。本地运动数据在应用私有目录，卸载会清除数据，必要时请先导出 PDF/JSON。
 
 ## 历史 dist 包
 
