@@ -331,6 +331,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         root.addView(endButton, matchWrap());
 
         countdownButton = materialButton("训练倒计时", v -> showCountdownSetupDialog());
+        countdownButton.setVisibility(View.GONE);
         root.addView(countdownButton, matchWrap());
 
         exportButton = materialButton("导出运动记录 PDF", v -> showExportSessionDialog());
@@ -669,32 +670,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         plusRow.addView(countdownStepButton("+5", 5, totalSeconds, durationValueText));
         plusRow.addView(countdownStepButton("+10", 10, totalSeconds, durationValueText));
         form.addView(plusRow, matchWrap());
-
-        Runnable refreshDuration = () ->
-                durationValueText.setText(formatCountdownDisplay(totalSeconds[0]));
-
-        LinearLayout presets = new LinearLayout(this);
-        presets.setOrientation(LinearLayout.HORIZONTAL);
-        presets.setGravity(Gravity.CENTER);
-        MaterialButton preset30 = outlinedButton("30秒");
-        MaterialButton preset60 = outlinedButton("60秒");
-        MaterialButton preset90 = outlinedButton("90秒");
-        preset30.setOnClickListener(v -> {
-            totalSeconds[0] = 30;
-            refreshDuration.run();
-        });
-        preset60.setOnClickListener(v -> {
-            totalSeconds[0] = 60;
-            refreshDuration.run();
-        });
-        preset90.setOnClickListener(v -> {
-            totalSeconds[0] = 90;
-            refreshDuration.run();
-        });
-        presets.addView(preset30, weighted());
-        presets.addView(preset60, weighted());
-        presets.addView(preset90, weighted());
-        form.addView(presets, matchWrap());
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("训练倒计时")
@@ -1293,6 +1268,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         fileManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         historyManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        countdownButton.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         if (!inWorkout) {
             startButton.setText("开始运动");
         } else if (workoutPaused) {
