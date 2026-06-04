@@ -4,20 +4,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
+# shellcheck source=scripts/signing_constants.sh
+source "${ROOT_DIR}/scripts/signing_constants.sh"
+
 export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/android-sdk}}"
 export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
 export PATH="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${PATH}"
 
-EXPECTED_SHA256="87fbddbb5e436e533e70972f8b995e8c551667cde43d0df0a0cf6705babb897b"
 KEYSTORE="${ROOT_DIR}/keystore/hr40-distribution.keystore"
 
-if [[ ! -f "${KEYSTORE}" ]]; then
-  if ! bash "${ROOT_DIR}/scripts/capture_distribution_keystore.sh" 2>/dev/null; then
-    rm -f "${KEYSTORE}"
-    echo "WARN: distribution keystore unavailable; debug build will use default signing." >&2
-    echo "      Set HR40_DISTRIBUTION_KEYSTORE_BASE64 for v3.4.5-compatible upgrades." >&2
-  fi
-fi
+bash "${ROOT_DIR}/scripts/capture_distribution_keystore.sh"
 
 bash "${ROOT_DIR}/scripts/setup_android_env.sh" >/dev/null
 
@@ -37,13 +33,18 @@ fingerprint() {
 
 BUILT_APK="${ROOT_DIR}/app/build/outputs/apk/debug/app-debug.apk"
 actual="$(fingerprint "${BUILT_APK}")"
-mkdir -p dist
-if [[ "${actual}" != "${EXPECTED_SHA256}" ]]; then
-  echo "WARN: APK signature does not match v3.4.5 distribution cert." >&2
-  echo "  expected: ${EXPECTED_SHA256}" >&2
-  echo "  actual:   ${actual}" >&2
-  echo "  Copied to dist anyway. Configure HR40_DISTRIBUTION_KEYSTORE_BASE64 for upgrade-safe builds." >&2
+
+if [[ "${actual}" != "${HR40_DIST_PRIMARY_SHA256}" ]]; then
+  echo "Built APK signature mismatch (cannot upgrade from v3.4.8)." >&2
+  echo "  required (v3.4.8 line): ${HR40_DIST_PRIMARY_SHA256}" >&2
+  echo "  actual:                 ${actual}" >&2
+  if [[ "${actual}" == "${HR40_SHA256_V345}" ]]; then
+    echo "Hint: keystore matches v3.4.5 line; install v3.4.8-line debug.keystore and rebuild." >&2
+  fi
+  exit 1
 fi
+
+mkdir -p dist
 cp "${BUILT_APK}" "${OUTPUT_APK}"
 cp "${BUILT_APK}" "${ROOT_DIR}/dist/hr40-offline-fitness-debug.apk"
-echo "OK: ${OUTPUT_APK}"
+echo "OK: ${OUTPUT_APK} (v3.4.8-compatible signature)"
