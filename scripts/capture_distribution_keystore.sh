@@ -5,8 +5,19 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=scripts/signing_constants.sh
 source "${ROOT_DIR}/scripts/signing_constants.sh"
 
-TARGET="${ROOT_DIR}/keystore/hr40-distribution.keystore"
+PROPERTIES="${ROOT_DIR}/keystore/hr40-distribution.properties"
+STORE_FILE="hr40-distribution.keystore"
+STORE_PASS="android"
 SOURCE="${HOME}/.android/debug.keystore"
+
+if [[ -f "${PROPERTIES}" ]]; then
+  # shellcheck disable=SC1090
+  source <(grep -E '^[a-zA-Z]+=' "${PROPERTIES}" | sed 's/\r$//')
+  STORE_FILE="${storeFile:-${STORE_FILE}}"
+  STORE_PASS="${storePassword:-${STORE_PASS}}"
+fi
+
+TARGET="${ROOT_DIR}/keystore/${STORE_FILE}"
 
 fingerprint() {
   keytool -list -v -keystore "$1" -storepass "${2:-android}" 2>/dev/null \
@@ -20,22 +31,25 @@ is_accepted_fingerprint() {
 
 mkdir -p "${ROOT_DIR}/keystore"
 
-if [[ -n "${HR40_DISTRIBUTION_KEYSTORE_BASE64:-}" ]]; then
+if [[ -n "${storeKeystoreBase64:-}" ]]; then
+  echo "${storeKeystoreBase64}" | tr -d '\n\r ' | base64 --decode >"${TARGET}"
+  echo "Wrote keystore from storeKeystoreBase64 in ${PROPERTIES}"
+elif [[ -n "${HR40_DISTRIBUTION_KEYSTORE_BASE64:-}" ]]; then
   echo "${HR40_DISTRIBUTION_KEYSTORE_BASE64}" | base64 --decode >"${TARGET}"
   echo "Wrote keystore from HR40_DISTRIBUTION_KEYSTORE_BASE64"
 elif [[ -f "${TARGET}" ]]; then
-  echo "Using existing ${TARGET}"
+  echo "Using existing ${TARGET} (configured in ${PROPERTIES})"
 elif [[ -f "${SOURCE}" ]]; then
   cp "${SOURCE}" "${TARGET}"
   echo "Copied ${SOURCE} -> ${TARGET}"
 else
-  echo "No keystore source found. Set HR40_DISTRIBUTION_KEYSTORE_BASE64 or create ~/.android/debug.keystore" >&2
+  echo "No keystore found. Place ${STORE_FILE} in keystore/ per ${PROPERTIES}, or set storeKeystoreBase64 / HR40_DISTRIBUTION_KEYSTORE_BASE64." >&2
   exit 1
 fi
 
-actual="$(fingerprint "${TARGET}" "android")"
+actual="$(fingerprint "${TARGET}" "${STORE_PASS}")"
 if [[ -z "${actual}" ]]; then
-  echo "Unable to read keystore fingerprint" >&2
+  echo "Unable to read keystore fingerprint (check ${PROPERTIES} passwords)." >&2
   exit 1
 fi
 
@@ -44,7 +58,7 @@ if ! is_accepted_fingerprint "${actual}"; then
   echo "  required (v3.4.8 line): ${HR40_SHA256_V348}" >&2
   echo "  or (v3.4.5 line):       ${HR40_SHA256_V345}" >&2
   echo "  actual:                 ${actual}" >&2
-  echo "Use the debug.keystore from the machine that built dist v3.4.8, or set HR40_DISTRIBUTION_KEYSTORE_BASE64." >&2
+  echo "Replace keystore/${STORE_FILE} with the v3.4.8-line debug.keystore from your build machine." >&2
   exit 1
 fi
 
