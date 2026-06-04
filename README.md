@@ -30,16 +30,16 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 为了便于平板测试，请安装 `dist/` 中最新版本 APK：
 
 ```text
-dist/hr40-offline-fitness-v3.10.0.apk
+dist/hr40-offline-fitness-v3.5.0.apk
 ```
 
-下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-v3.10.0.apk` → **Download raw file**。
+下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-v3.5.0.apk` → **Download raw file**。
 
-## v3.10.0 更新
+## v3.5.0 更新
 
 - 新增「查看运动明细」：位于「导出运动记录 PDF」下方，选择历史记录后在应用内查看心率曲线、估算消耗、心率区间与力量训练组数
 - 新增「训练倒计时」：可设定目标时间，到时播放滴滴提示音并语音播报「时间到」，适用于平板支撑等计时训练
-- **从 v3.4.8 升级**：`dist/hr40-offline-fitness-v3.10.0.apk` 必须与 v3.4.8 **同签名证书** 构建（见 `keystore/README.md`、`dist/SIGNING.md`）。若提示签名冲突，请用 `./scripts/build_dist_apk.sh` 在持有 v3.4.8 构建密钥的机器上重新生成并替换 dist 包。
+- **从 v3.4.8 升级**：`dist/hr40-offline-fitness-v3.5.0.apk` 必须与 v3.4.8 **同签名证书** 构建（见 `keystore/README.md`、`dist/SIGNING.md`）。若提示签名冲突，请用 `./scripts/build_dist_apk.sh` 在持有 v3.4.8 构建密钥的机器上重新生成并替换 dist 包。
 
 ## v3.4.8 更新
 
