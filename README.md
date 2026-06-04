@@ -25,21 +25,34 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 ./scripts/build_dist_apk.sh
 ```
 
-发布包需使用仓库固定签名证书（见 `keystore/README.md`）。`build_dist_apk.sh` 会校验 APK 证书与 v3.4.5 一致后才写入 `dist/`。
+### 统一签名（v3.5.0 起，重要）
+
+为避免不同构建机使用各自 `debug.keystore` 导致**签名冲突、无法覆盖安装**，仓库在 `cursor_bluetooth_igp_hr40/keystore/hr40-distribution.keystore` 中提交了**唯一**的分发用二进制密钥库。
+
+**之后所有新版本的 `dist/` 安装包都必须通过该文件签名生成**（执行 `./scripts/build_dist_apk.sh`），不得改用本机 `~/.android/debug.keystore` 或其它临时证书。详见 `keystore/README.md`、`dist/SIGNING.md`。
+
+```bash
+./scripts/check_keystore_matches_distribution.sh   # 确认密钥库与仓库一致
+```
 
 为了便于平板测试，请安装 `dist/` 中最新版本 APK：
 
 ```text
-dist/hr40-offline-fitness-v3.10.0.apk
+dist/hr40-offline-fitness-v3.5.0.apk
 ```
 
-下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-v3.10.0.apk` → **Download raw file**。
+下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-v3.5.0.apk` → **Download raw file**。
 
-## v3.10.0 更新
+## v3.5.0 更新
 
-- 新增「查看运动明细」：位于「导出运动记录 PDF」下方，选择历史记录后在应用内查看心率曲线、估算消耗、心率区间与力量训练组数
-- 新增「训练倒计时」：可设定目标时间，到时播放滴滴提示音并语音播报「时间到」，适用于平板支撑等计时训练
-- **从 v3.4.8 升级**：`dist/hr40-offline-fitness-v3.10.0.apk` 必须与 v3.4.8 **同签名证书** 构建（见 `keystore/README.md`、`dist/SIGNING.md`）。若提示签名冲突，请用 `./scripts/build_dist_apk.sh` 在持有 v3.4.8 构建密钥的机器上重新生成并替换 dist 包。
+- **新分发签名线**：提交固定密钥库 `keystore/hr40-distribution.keystore`，构建脚本强制校验证书指纹，杜绝再发布“同版本号、不同签名”的包
+- 包含 v3.10.0 功能：应用内「查看运动明细」、 「训练倒计时」
+- **升级说明**：若已安装 v3.4.8、v3.10.0 等旧签名线的 APK，请先**卸载**再安装 v3.5.0（签名不同，无法直接覆盖）。卸载前请按需导出 PDF/JSON 备份
+
+## v3.10.0 更新（旧签名线，已由 v3.5.0 取代分发）
+
+- 新增「查看运动明细」与「训练倒计时」
+- 注意：v3.10.0 使用旧 debug 证书线，与 v3.5.0 **不可**互相覆盖安装
 
 ## v3.4.8 更新
 
@@ -135,16 +148,18 @@ dist/hr40-offline-fitness-v3.10.0.apk
 - `y`：新增功能时 +1
 - `z`：仅页面/UI 调整时 +1
 
-当前版本：`3.10.0`
+当前版本：`3.5.0`
 - `x=3`：Keytel 算法增加“力量模式 0.88 修正系数”
-- `y=10`：应用内运动明细查看、训练倒计时
+- `y=5`：固定仓库密钥库 + 统一分发签名（含 v3.10.0 功能）
 - `z=0`：—
 
 ## 安装与升级
 
-- 从 **v3.4.6–v3.4.8** 升级：安装 `dist/hr40-offline-fitness-v3.10.0.apk`，且该包须与 v3.4.8 **同签名**（证书 SHA-256 为 `4cfb9b40…`，见 `dist/SIGNING.md`）。若提示**签名冲突**，说明 dist 包用了错误证书构建，请按 `keystore/README.md` 用 v3.4.8 构建密钥重新运行 `./scripts/build_dist_apk.sh`。
-- 从 **v3.4.5** 升级：若签名与 v3.4.5 线一致可覆盖；否则先卸载再安装。
-- 未开始运动时标题显示 **HR40 离线运动监测 v3.10.0**。
+- **新安装 / 推荐**：`dist/hr40-offline-fitness-v3.5.0.apk`（签名 SHA-256：`7ca2098f…`，见 `dist/SIGNING.md`）
+- 从 **v3.4.8、v3.10.0** 等旧包升级：先卸载旧版，再安装 v3.5.0（签名已更换，无法覆盖安装）
+- 从 **v3.4.5** 线升级：同样需卸载后安装 v3.5.0
+- 维护者发布新版本：仅使用 `./scripts/build_dist_apk.sh` + 仓库内 `keystore/hr40-distribution.keystore`
+- 未开始运动时标题显示 **HR40 离线运动监测 v3.5.0**
 
 ## 权限
 

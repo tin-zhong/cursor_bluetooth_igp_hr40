@@ -1,49 +1,25 @@
 # HR40 分发签名证书
 
-`dist/` 中的 APK 必须使用**与已安装版本一致**的签名密钥，否则无法覆盖安装（会提示签名冲突）。
+从 **v3.5.0** 起，所有 `dist/` 发布包必须使用仓库内固定的二进制密钥库：
 
-## 当前推荐指纹（v3.4.6–v3.4.8 / v3.10.0 分发线）
-
-- SHA-256: `4cfb9b4041f293901fbffacfc51e31f4d35061f9ec27b8d906a54bf5dbdc4810`
-- 对应 `dist/hr40-offline-fitness-v3.4.6.apk` … `v3.4.8.apk`
-
-## 旧版指纹（v3.4.0–v3.4.5）
-
-- SHA-256: `87fbddbb5e436e533e70972f8b995e8c551667cde43d0df0a0cf6705babb897b`
-
-## 检查本机密钥是否匹配 v3.4.8
-
-```bash
-./scripts/check_keystore_matches_v348.sh
+```text
+cursor_bluetooth_igp_hr40/keystore/hr40-distribution.keystore
 ```
 
-若输出 `MATCH`，即可构建与 v3.4.8 同签名的 v3.10.0。
+该文件已纳入版本控制。之后每一个新版本的安装包都**只能**通过此密钥库签名（运行 `./scripts/build_dist_apk.sh`），禁止再使用各机器自带的 `~/.android/debug.keystore`，以避免再次出现签名冲突、无法覆盖安装的问题。
 
-## 配置密钥
+## 当前分发线指纹（v3.5.0+）
 
-**方式 A — Cursor / CI Secret（推荐）**
+- SHA-256: `7ca2098facb2297a447c1730d1731a3f89b74cb35f9f46ca8dc12bc10f02dd51`
+- 别名 / 密码：见 `hr40-distribution.properties`（`androiddebugkey` / `android`）
 
-在 Secrets 中设置 `HR40_DISTRIBUTION_KEYSTORE_BASE64`（`debug.keystore` 文件的 Base64，无换行）：
-
-```bash
-base64 -w0 ~/.android/debug.keystore   # Linux
-# macOS: base64 -i ~/.android/debug.keystore | tr -d '\n'
-```
-
-**方式 B — 本机 debug.keystore**
-
-若 `~/.android/debug.keystore` 指纹与 v3.4.8 一致：
+## 检查密钥库
 
 ```bash
-./scripts/capture_distribution_keystore.sh
+./scripts/check_keystore_matches_distribution.sh
 ```
 
-**方式 C — 提交到仓库（可选）**
-
-```bash
-cp ~/.android/debug.keystore keystore/hr40-distribution.keystore
-git add -f keystore/hr40-distribution.keystore
-```
+输出 `MATCH` 表示本机 `keystore/hr40-distribution.keystore` 与仓库一致。
 
 ## 构建发布包
 
@@ -51,6 +27,23 @@ git add -f keystore/hr40-distribution.keystore
 ./scripts/build_dist_apk.sh
 ```
 
-脚本要求输出 APK 的证书指纹为 **v3.4.8 线**（`4cfb9b40…`），否则构建失败，避免再次发布无法覆盖安装的包。
+脚本会校验输出 APK 的证书指纹为 **v3.5.0 线**（`7ca2098f…`），否则构建失败。
 
-密码与别名见 `hr40-distribution.properties`（默认 `android` / `androiddebugkey`）。
+## CI 可选覆盖
+
+若需在 CI 中覆盖仓库内密钥库，可在 Secrets 中设置 `HR40_DISTRIBUTION_KEYSTORE_BASE64`（须与上述指纹一致）：
+
+```bash
+base64 -w0 keystore/hr40-distribution.keystore   # Linux
+```
+
+## 从旧版升级
+
+若设备已安装 v3.4.8、v3.10.0 等**旧签名线**的 APK，安装 v3.5.0 前需**先卸载**旧版（签名不同，无法直接覆盖）。详见根目录 `README.md` 与 `dist/SIGNING.md`。
+
+## 历史指纹（只读参考）
+
+| 产品线 | SHA-256 |
+|--------|---------|
+| v3.4.6–v3.4.8、v3.10.0 | `4cfb9b4041f293901fbffacfc51e31f4d35061f9ec27b8d906a54bf5dbdc4810` |
+| v3.4.0–v3.4.5 | `87fbddbb5e436e533e70972f8b995e8c551667cde43d0df0a0cf6705babb897b` |
