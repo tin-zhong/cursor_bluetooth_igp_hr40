@@ -38,10 +38,15 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 为了便于平板测试，请安装 `dist/` 中最新版本 APK：
 
 ```text
-dist/hr40-offline-fitness-v3.5.0.apk
+dist/hr40-offline-fitness-v3.5.1.apk
 ```
 
-下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-v3.5.0.apk` → **Download raw file**。
+下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-v3.5.1.apk` → **Download raw file**。
+
+## v3.5.1 更新
+
+- 训练倒计时：目标时间改为与力量训练次数相同的累加/累减按钮（`-10/-5/-1`、`+1/+5/+10`），取消快捷预设
+- 「训练倒计时」仅在运动中显示（有氧、力量均可），主页面不再显示该入口
 
 ## v3.5.0 更新
 
@@ -148,18 +153,19 @@ dist/hr40-offline-fitness-v3.5.0.apk
 - `y`：新增功能时 +1
 - `z`：仅页面/UI 调整时 +1
 
-当前版本：`3.5.0`
+当前版本：`3.5.1`
 - `x=3`：Keytel 算法增加“力量模式 0.88 修正系数”
 - `y=5`：固定仓库密钥库 + 统一分发签名（含 v3.10.0 功能）
-- `z=0`：—
+- `z=1`：训练倒计时入口与设定交互调整
 
 ## 安装与升级
 
-- **新安装 / 推荐**：`dist/hr40-offline-fitness-v3.5.0.apk`（签名 SHA-256：`7ca2098f…`，见 `dist/SIGNING.md`）
-- 从 **v3.4.8、v3.10.0** 等旧包升级：先卸载旧版，再安装 v3.5.0（签名已更换，无法覆盖安装）
-- 从 **v3.4.5** 线升级：同样需卸载后安装 v3.5.0
+- **新安装 / 推荐**：`dist/hr40-offline-fitness-v3.5.1.apk`（签名 SHA-256：`7ca2098f…`，见 `dist/SIGNING.md`）
+- 从 **v3.5.0** 升级：直接覆盖安装 v3.5.1（同签名线）
+- 从 **v3.4.8、v3.10.0** 等旧包升级：先卸载旧版，再安装 v3.5.1（签名已更换，无法覆盖安装）
+- 从 **v3.4.5** 线升级：同样需卸载后安装 v3.5.1
 - 维护者发布新版本：仅使用 `./scripts/build_dist_apk.sh` + 仓库内 `keystore/hr40-distribution.keystore`
-- 未开始运动时标题显示 **HR40 离线运动监测 v3.5.0**
+- 未开始运动时标题显示 **HR40 离线运动监测 v3.5.1**
 
 ## 权限
 

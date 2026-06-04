@@ -331,6 +331,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         root.addView(endButton, matchWrap());
 
         countdownButton = materialButton("训练倒计时", v -> showCountdownSetupDialog());
+        countdownButton.setVisibility(View.GONE);
         root.addView(countdownButton, matchWrap());
 
         exportButton = materialButton("导出运动记录 PDF", v -> showExportSessionDialog());
@@ -644,42 +645,31 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         LinearLayout form = verticalLayout();
         form.setPadding(dp(8), dp(4), dp(8), 0);
 
-        TextInputLayout minutesLayout = inputLayout("分钟");
-        TextInputEditText minutesInput = new TextInputEditText(this);
-        minutesInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        minutesInput.setText("0");
-        minutesLayout.addView(minutesInput);
-        form.addView(minutesLayout, matchWrap());
+        final int[] totalSeconds = {30};
+        TextView durationLabel = textView("目标时间");
+        durationLabel.setTextColor(Color.DKGRAY);
+        form.addView(durationLabel, matchWrap());
 
-        TextInputLayout secondsLayout = inputLayout("秒");
-        TextInputEditText secondsInput = new TextInputEditText(this);
-        secondsInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        secondsInput.setText("30");
-        secondsLayout.addView(secondsInput);
-        form.addView(secondsLayout, matchWrap());
+        TextView durationValueText = textView(formatCountdownDisplay(totalSeconds[0]));
+        durationValueText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f);
+        durationValueText.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        LinearLayout presets = new LinearLayout(this);
-        presets.setOrientation(LinearLayout.HORIZONTAL);
-        presets.setGravity(Gravity.CENTER);
-        MaterialButton preset30 = outlinedButton("30秒");
-        MaterialButton preset60 = outlinedButton("60秒");
-        MaterialButton preset90 = outlinedButton("90秒");
-        preset30.setOnClickListener(v -> {
-            minutesInput.setText("0");
-            secondsInput.setText("30");
-        });
-        preset60.setOnClickListener(v -> {
-            minutesInput.setText("1");
-            secondsInput.setText("0");
-        });
-        preset90.setOnClickListener(v -> {
-            minutesInput.setText("1");
-            secondsInput.setText("30");
-        });
-        presets.addView(preset30, weighted());
-        presets.addView(preset60, weighted());
-        presets.addView(preset90, weighted());
-        form.addView(presets, matchWrap());
+        LinearLayout minusRow = new LinearLayout(this);
+        minusRow.setOrientation(LinearLayout.HORIZONTAL);
+        minusRow.setGravity(Gravity.CENTER);
+        minusRow.addView(countdownStepButton("-10", -10, totalSeconds, durationValueText));
+        minusRow.addView(countdownStepButton("-5", -5, totalSeconds, durationValueText));
+        minusRow.addView(countdownStepButton("-1", -1, totalSeconds, durationValueText));
+        form.addView(minusRow, matchWrap());
+        form.addView(durationValueText, matchWrap());
+
+        LinearLayout plusRow = new LinearLayout(this);
+        plusRow.setOrientation(LinearLayout.HORIZONTAL);
+        plusRow.setGravity(Gravity.CENTER);
+        plusRow.addView(countdownStepButton("+1", 1, totalSeconds, durationValueText));
+        plusRow.addView(countdownStepButton("+5", 5, totalSeconds, durationValueText));
+        plusRow.addView(countdownStepButton("+10", 10, totalSeconds, durationValueText));
+        form.addView(plusRow, matchWrap());
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("训练倒计时")
@@ -687,39 +677,18 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                 .setView(form)
                 .setNegativeButton("取消", null)
                 .setPositiveButton("开始倒计时", (dialog, which) -> {
-                    int totalSeconds = parseCountdownSeconds(minutesInput, secondsInput);
-                    if (totalSeconds <= 0) {
+                    int seconds = totalSeconds[0];
+                    if (seconds <= 0) {
                         showToast("请设置大于 0 的倒计时");
                         return;
                     }
-                    if (totalSeconds > 24 * 60 * 60) {
+                    if (seconds > 24 * 60 * 60) {
                         showToast("倒计时不能超过 24 小时");
                         return;
                     }
-                    startTrainingCountdown(totalSeconds);
+                    startTrainingCountdown(seconds);
                 })
                 .show();
-    }
-
-    private int parseCountdownSeconds(TextInputEditText minutesInput, TextInputEditText secondsInput) {
-        int minutes = 0;
-        int seconds = 0;
-        try {
-            String minutesText = minutesInput.getText() == null ? "" : minutesInput.getText().toString().trim();
-            if (!minutesText.isEmpty()) {
-                minutes = Integer.parseInt(minutesText);
-            }
-            String secondsText = secondsInput.getText() == null ? "" : secondsInput.getText().toString().trim();
-            if (!secondsText.isEmpty()) {
-                seconds = Integer.parseInt(secondsText);
-            }
-        } catch (NumberFormatException ignored) {
-            return -1;
-        }
-        if (minutes < 0 || seconds < 0) {
-            return -1;
-        }
-        return minutes * 60 + seconds;
     }
 
     private void startTrainingCountdown(int totalSeconds) {
@@ -1299,6 +1268,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         fileManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         historyManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        countdownButton.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         if (!inWorkout) {
             startButton.setText("开始运动");
         } else if (workoutPaused) {
@@ -1335,6 +1305,31 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         params.setMargins(dp(4), dp(4), dp(4), dp(4));
         button.setLayoutParams(params);
         return button;
+    }
+
+    private MaterialButton countdownStepButton(
+            String labelText,
+            int delta,
+            int[] totalSecondsHolder,
+            TextView durationValueText) {
+        MaterialButton button = outlinedButton(labelText);
+        button.setMinWidth(0);
+        button.setMinimumWidth(dp(72));
+        button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        button.setOnClickListener(v ->
+                adjustCountdownSeconds(totalSecondsHolder, durationValueText, delta));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(dp(4), dp(4), dp(4), dp(4));
+        button.setLayoutParams(params);
+        return button;
+    }
+
+    private void adjustCountdownSeconds(int[] totalSecondsHolder, TextView durationValueText, int delta) {
+        int maxSeconds = 24 * 60 * 60;
+        totalSecondsHolder[0] = Math.max(0, Math.min(maxSeconds, totalSecondsHolder[0] + delta));
+        durationValueText.setText(formatCountdownDisplay(totalSecondsHolder[0]));
     }
 
     private void adjustPendingReps(int delta) {
