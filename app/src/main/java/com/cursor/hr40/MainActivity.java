@@ -84,6 +84,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private MaterialButton startButton;
     private MaterialButton endButton;
     private MaterialButton exportButton;
+    private MaterialButton detailViewButton;
+    private MaterialButton countdownButton;
     private MaterialButton rawExportButton;
     private MaterialButton exerciseManageButton;
     private MaterialButton editProfileButton;
@@ -102,6 +104,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private long pauseStartedAtMillis;
     private long pausedDurationMillis;
     private long lastDisplayedDurationSeconds = -1L;
+
+    private TrainingCountdownTimer trainingCountdownTimer;
+    private androidx.appcompat.app.AlertDialog activeCountdownDialog;
+    private TextView countdownDisplayText;
 
     private static final long UI_SECOND_TICK_MIN_DELAY_MS = 50L;
     private static final long MAINTENANCE_INTERVAL_MS = 60_000L;
@@ -129,6 +135,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         super.onCreate(savedInstanceState);
         profile = ProfileStore.load(this);
         heartRateManager = new BleHeartRateManager(this, this);
+        trainingCountdownTimer = new TrainingCountdownTimer(this);
         buildUi();
         reloadExerciseNames();
         loadLatestWorkout();
@@ -147,6 +154,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        dismissCountdownDialog();
+        if (trainingCountdownTimer != null) {
+            trainingCountdownTimer.release();
+        }
         if (heartRateManager != null) {
             heartRateManager.close();
         }
@@ -322,8 +333,14 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         endButton.setEnabled(false);
         root.addView(endButton, matchWrap());
 
+        countdownButton = materialButton("训练倒计时", v -> showCountdownSetupDialog());
+        root.addView(countdownButton, matchWrap());
+
         exportButton = materialButton("导出运动记录 PDF", v -> showExportSessionDialog());
         root.addView(exportButton, matchWrap());
+
+        detailViewButton = materialButton("查看运动明细", v -> showWorkoutDetailPickerDialog());
+        root.addView(detailViewButton, matchWrap());
 
         rawExportButton = materialButton("导出原始训练数据(JSON)", v -> exportRawWorkoutData());
         root.addView(rawExportButton, matchWrap());
@@ -600,6 +617,182 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         } catch (IOException e) {
             showToast("导出 PDF 失败: " + e.getMessage());
         }
+    }
+
+    private void showWorkoutDetailPickerDialog() {
+        List<WorkoutSession> sessions = collectExportableSessions();
+        List<String> labels = new ArrayList<>();
+        for (WorkoutSession session : sessions) {
+            labels.add(formatSessionLabel(session));
+        }
+        if (sessions.isEmpty()) {
+            showToast("暂无可查看的运动记录");
+            return;
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("选择要查看的运动记录")
+                .setItems(labels.toArray(new String[0]), (dialog, which) ->
+                        showWorkoutDetailDialog(sessions.get(which)))
+                .show();
+    }
+
+    private void showWorkoutDetailDialog(WorkoutSession session) {
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.addView(WorkoutDetailViews.build(this, profile, session), matchWrap());
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("运动明细")
+                .setView(scrollView)
+                .setPositiveButton("关闭", null)
+                .show();
+    }
+
+    private void showCountdownSetupDialog() {
+        LinearLayout form = verticalLayout();
+        form.setPadding(dp(8), dp(4), dp(8), 0);
+
+        TextInputLayout minutesLayout = inputLayout("分钟");
+        TextInputEditText minutesInput = new TextInputEditText(this);
+        minutesInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        minutesInput.setText("0");
+        minutesLayout.addView(minutesInput);
+        form.addView(minutesLayout, matchWrap());
+
+        TextInputLayout secondsLayout = inputLayout("秒");
+        TextInputEditText secondsInput = new TextInputEditText(this);
+        secondsInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        secondsInput.setText("30");
+        secondsLayout.addView(secondsInput);
+        form.addView(secondsLayout, matchWrap());
+
+        LinearLayout presets = new LinearLayout(this);
+        presets.setOrientation(LinearLayout.HORIZONTAL);
+        presets.setGravity(Gravity.CENTER);
+        MaterialButton preset30 = outlinedButton("30秒");
+        MaterialButton preset60 = outlinedButton("60秒");
+        MaterialButton preset90 = outlinedButton("90秒");
+        preset30.setOnClickListener(v -> {
+            minutesInput.setText("0");
+            secondsInput.setText("30");
+        });
+        preset60.setOnClickListener(v -> {
+            minutesInput.setText("1");
+            secondsInput.setText("0");
+        });
+        preset90.setOnClickListener(v -> {
+            minutesInput.setText("1");
+            secondsInput.setText("30");
+        });
+        presets.addView(preset30, weighted());
+        presets.addView(preset60, weighted());
+        presets.addView(preset90, weighted());
+        form.addView(presets, matchWrap());
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("训练倒计时")
+                .setMessage("设定目标时间，到时将播放提示音并语音播报「时间到」。适用于平板支撑等计时训练。")
+                .setView(form)
+                .setNegativeButton("取消", null)
+                .setPositiveButton("开始倒计时", (dialog, which) -> {
+                    int totalSeconds = parseCountdownSeconds(minutesInput, secondsInput);
+                    if (totalSeconds <= 0) {
+                        showToast("请设置大于 0 的倒计时");
+                        return;
+                    }
+                    if (totalSeconds > 24 * 60 * 60) {
+                        showToast("倒计时不能超过 24 小时");
+                        return;
+                    }
+                    startTrainingCountdown(totalSeconds);
+                })
+                .show();
+    }
+
+    private int parseCountdownSeconds(TextInputEditText minutesInput, TextInputEditText secondsInput) {
+        int minutes = 0;
+        int seconds = 0;
+        try {
+            String minutesText = minutesInput.getText() == null ? "" : minutesInput.getText().toString().trim();
+            if (!minutesText.isEmpty()) {
+                minutes = Integer.parseInt(minutesText);
+            }
+            String secondsText = secondsInput.getText() == null ? "" : secondsInput.getText().toString().trim();
+            if (!secondsText.isEmpty()) {
+                seconds = Integer.parseInt(secondsText);
+            }
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
+        if (minutes < 0 || seconds < 0) {
+            return -1;
+        }
+        return minutes * 60 + seconds;
+    }
+
+    private void startTrainingCountdown(int totalSeconds) {
+        dismissCountdownDialog();
+        LinearLayout panel = verticalLayout();
+        panel.setPadding(dp(16), dp(12), dp(16), dp(8));
+        panel.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        countdownDisplayText = new TextView(this);
+        countdownDisplayText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48f);
+        countdownDisplayText.setTextColor(getColor(R.color.md_primary));
+        countdownDisplayText.setGravity(Gravity.CENTER_HORIZONTAL);
+        countdownDisplayText.setText(formatCountdownDisplay(totalSeconds));
+        panel.addView(countdownDisplayText, matchWrap());
+
+        TextView hint = textView("倒计时进行中，可继续当前运动");
+        hint.setGravity(Gravity.CENTER_HORIZONTAL);
+        hint.setTextColor(Color.DKGRAY);
+        panel.addView(hint, matchWrap());
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+                .setTitle("训练倒计时")
+                .setView(panel)
+                .setCancelable(false)
+                .setNegativeButton("取消", (dialog, which) -> cancelTrainingCountdown());
+        activeCountdownDialog = builder.create();
+        activeCountdownDialog.show();
+
+        trainingCountdownTimer.setListener(new TrainingCountdownTimer.Listener() {
+            @Override
+            public void onTick(int remainingSeconds) {
+                if (countdownDisplayText != null) {
+                    countdownDisplayText.setText(formatCountdownDisplay(remainingSeconds));
+                }
+            }
+
+            @Override
+            public void onFinished() {
+                if (countdownDisplayText != null) {
+                    countdownDisplayText.setText("00:00");
+                }
+                showToast("倒计时结束");
+                dismissCountdownDialog();
+            }
+        });
+        trainingCountdownTimer.start(totalSeconds);
+    }
+
+    private void cancelTrainingCountdown() {
+        if (trainingCountdownTimer != null) {
+            trainingCountdownTimer.stop();
+        }
+        dismissCountdownDialog();
+    }
+
+    private void dismissCountdownDialog() {
+        if (activeCountdownDialog != null && activeCountdownDialog.isShowing()) {
+            activeCountdownDialog.dismiss();
+        }
+        activeCountdownDialog = null;
+        countdownDisplayText = null;
+    }
+
+    private static String formatCountdownDisplay(int totalSeconds) {
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return String.format(Locale.US, "%02d:%02d", minutes, seconds);
     }
 
     private void showProfileDialog(boolean cancellable) {
@@ -1144,6 +1337,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
         boolean inWorkout = activeSession != null;
         exportButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        detailViewButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         rawExportButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         exerciseManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
