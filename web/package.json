@@ -13,6 +13,7 @@
     "preview": "nuxt preview"
   },
   "dependencies": {
+    "@internationalized/date": "^3.10.0",
     "@nuxt/ui": "^3.0.2",
     "@nuxtjs/supabase": "^1.4.6",
     "nuxt": "^3.16.2",

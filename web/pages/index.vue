@@ -68,25 +68,27 @@ function clearDateFilter() {
     </AppHeader>
 
     <UCard class="mb-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-        <UFormField label="开始日期">
-          <UInput v-model="startDate" type="date" class="w-full" />
-        </UFormField>
-        <UFormField label="结束日期">
-          <UInput v-model="endDate" type="date" class="w-full" />
-        </UFormField>
-        <div class="sm:col-span-2 lg:col-span-2 flex gap-2">
-          <UButton
-            color="neutral"
-            variant="soft"
-            label="清除筛选"
-            :disabled="!startDate && !endDate"
-            @click="clearDateFilter"
-          />
-          <p class="text-sm text-muted self-center">
-            已筛选 {{ filteredWorkouts.length }} / {{ workouts.length }} 条记录
-          </p>
-        </div>
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <DatePickerField
+          v-model="startDate"
+          label="开始日期"
+          placeholder="选择开始日期"
+        />
+        <DatePickerField
+          v-model="endDate"
+          label="结束日期"
+          placeholder="选择结束日期"
+        />
+        <UButton
+          color="neutral"
+          variant="soft"
+          label="清除筛选"
+          :disabled="!startDate && !endDate"
+          @click="clearDateFilter"
+        />
+        <p class="text-sm text-muted ml-auto">
+          已筛选 {{ filteredWorkouts.length }} / {{ workouts.length }} 条记录
+        </p>
       </div>
     </UCard>
 

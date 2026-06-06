@@ -42,13 +42,14 @@ public final class UserManagementActivity extends AppCompatActivity {
 
         TextView title = new TextView(this);
         title.setText("用户管理");
-        title.setTextSize(20f);
-        root.addView(title);
+        OnlineUi.stylePageTitle(title);
+        root.addView(title, matchWrap());
 
         TextView profileHint = new TextView(this);
         profileHint.setText("运动人员资料");
         profileHint.setPadding(0, dp(16), 0, dp(8));
-        root.addView(profileHint);
+        OnlineUi.styleSectionTitle(profileHint);
+        root.addView(profileHint, matchWrap());
 
         nameInput = addField(root, "姓名或昵称", InputType.TYPE_CLASS_TEXT);
         heightInput = addField(root, "身高 cm", InputType.TYPE_CLASS_NUMBER);
@@ -65,20 +66,19 @@ public final class UserManagementActivity extends AppCompatActivity {
         sexRow.addView(femaleButton, weighted());
         root.addView(sexRow, matchWrap());
 
-        MaterialButton saveProfileButton = new MaterialButton(this);
-        saveProfileButton.setText("保存资料");
-        saveProfileButton.setAllCaps(false);
-        saveProfileButton.setOnClickListener(v -> saveProfile());
+        MaterialButton saveProfileButton = materialButton("保存资料", v -> saveProfile());
         root.addView(saveProfileButton, matchWrap());
 
         TextView accountHint = new TextView(this);
         accountHint.setText("账户与安全");
         accountHint.setPadding(0, dp(24), 0, dp(8));
-        root.addView(accountHint);
+        OnlineUi.styleSectionTitle(accountHint);
+        root.addView(accountHint, matchWrap());
 
         TextView email = new TextView(this);
         email.setText("邮箱: " + SupabaseSessionStore.getEmail(this));
-        root.addView(email);
+        OnlineUi.styleBody(email);
+        root.addView(email, matchWrap());
 
         MaterialButton changePassword = materialButton("修改密码", v -> showChangePasswordDialog());
         root.addView(changePassword, matchWrap());
@@ -235,7 +235,7 @@ public final class UserManagementActivity extends AppCompatActivity {
     private MaterialButton materialButton(String text, android.view.View.OnClickListener listener) {
         MaterialButton button = new MaterialButton(this);
         button.setText(text);
-        button.setAllCaps(false);
+        OnlineUi.styleButton(button);
         button.setOnClickListener(listener);
         return button;
     }
@@ -244,7 +244,7 @@ public final class UserManagementActivity extends AppCompatActivity {
         MaterialButton button = new MaterialButton(
                 this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         button.setText(text);
-        button.setAllCaps(false);
+        OnlineUi.styleButton(button);
         return button;
     }
 

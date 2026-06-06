@@ -77,6 +77,7 @@ public final class OnlineProfileActivity extends AppCompatActivity {
 
         MaterialButton saveButton = new MaterialButton(this);
         saveButton.setText("保存并继续");
+        OnlineUi.styleButton(saveButton);
         saveButton.setOnClickListener(v -> save(
                 nameInput, heightInput, weightInput, ageInput));
         root.addView(saveButton);
@@ -137,7 +138,7 @@ public final class OnlineProfileActivity extends AppCompatActivity {
         MaterialButton button = new MaterialButton(
                 this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         button.setText(text);
-        button.setAllCaps(false);
+        OnlineUi.styleButton(button);
         return button;
     }
 

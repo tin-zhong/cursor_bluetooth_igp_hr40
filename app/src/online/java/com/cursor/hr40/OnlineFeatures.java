@@ -18,7 +18,7 @@ public final class OnlineFeatures {
 
     public static void configureProfileButton(MainActivity activity, MaterialButton button) {
         button.setText(profileButtonLabel());
-        button.setAllCaps(false);
+        OnlineUi.styleButton(button);
         button.setOnClickListener(v ->
                 activity.startActivity(new Intent(activity, UserManagementActivity.class)));
     }
