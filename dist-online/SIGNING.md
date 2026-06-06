@@ -1,17 +1,15 @@
 # dist-online APK 签名说明
 
-Online 版与离线版使用**同一套分发密钥库**（`keystore/hr40-distribution.keystore`）。
+## Online v3.5.1+（当前推荐）
 
-证书 SHA-256：`7ca2098facb2297a447c1730d1731a3f89b74cb35f9f46ca8dc12bc10f02dd51`
+| 文件 | 签名线 |
+|------|--------|
+| `hr40-online-fitness-v3.5.1.apk` 及之后新版本 | **Online v3.5.1 线**（仓库 `dist-online/keystore/hr40-online-distribution.keystore`） |
 
-发布新版本时，请执行：
+证书 SHA-256：`27467f3745d55776eadc247ab7e2930388c7f120b980b098893b6a6600cfda71`
 
-```bash
-bash scripts/build_dist_online_apk.sh
-```
+维护者发布新版本时，请始终执行 `./scripts/build_dist_online_apk.sh`，脚本会强制使用并校验上述密钥库，**不要**使用本机临时 debug 证书或离线版 `keystore/hr40-distribution.keystore`。
 
-脚本会校验签名指纹，通过后将 APK 提交到本目录（与 `dist/` 离线包相同流程）。
+## 与离线版
 
-## 包名
-
-Online 版包名为 `com.cursor.hr40.online`，与离线版 `com.cursor.hr40` **可同时安装**，互不影响。
+Online 版使用独立密钥库与包名（`com.cursor.hr40.online`），与离线版 `com.cursor.hr40` **可同时安装**，签名线也相互独立。详见 `dist-online/keystore/README.md`。

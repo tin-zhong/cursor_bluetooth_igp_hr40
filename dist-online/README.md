@@ -9,7 +9,7 @@ Online 版本安装包目录，与 `dist/` 同级。
 - `hr40-online-fitness-v{versionName}.apk` — 正式分发包
 - `hr40-online-fitness-debug.apk` — 与正式包同签名，便于调试
 
-签名说明见 [SIGNING.md](./SIGNING.md)。
+签名说明见 [SIGNING.md](./SIGNING.md)，密钥库见 [keystore/README.md](./keystore/README.md)。
 
 ## 发布新版本
 
