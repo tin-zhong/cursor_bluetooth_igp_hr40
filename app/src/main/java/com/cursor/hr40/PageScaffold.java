@@ -1,6 +1,9 @@
 package com.cursor.hr40;
 
+import android.graphics.Color;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -35,9 +38,36 @@ public final class PageScaffold {
         stylePageTitle(activity, titleView);
         root.addView(titleView, matchWrap());
 
+        DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
+        root.setMinimumHeight(metrics.heightPixels - dp(activity, 48));
+
         scrollView.addView(root);
         activity.setContentView(scrollView);
         return root;
+    }
+
+    public static LinearLayout contentArea(AppCompatActivity activity, LinearLayout root) {
+        LinearLayout area = new LinearLayout(activity);
+        area.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f);
+        root.addView(area, params);
+        return area;
+    }
+
+    public static void showCenteredEmpty(AppCompatActivity activity, LinearLayout container, String text) {
+        container.removeAllViews();
+        container.setGravity(Gravity.CENTER);
+        DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
+        container.setMinimumHeight((int) (metrics.heightPixels * 0.45f));
+        TextView empty = new TextView(activity);
+        empty.setText(text);
+        empty.setGravity(Gravity.CENTER);
+        empty.setTextColor(Color.DKGRAY);
+        styleBody(activity, empty);
+        container.addView(empty, matchWrap());
     }
 
     public static TextView sectionTitle(AppCompatActivity activity, LinearLayout root, String text) {
@@ -89,6 +119,11 @@ public final class PageScaffold {
     public static void styleButton(MaterialButton button) {
         button.setAllCaps(false);
         button.setTextSize(TypedValue.COMPLEX_UNIT_SP, BODY_SP);
+    }
+
+    public static void styleListItemText(AppCompatActivity activity, TextView view) {
+        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, BODY_SP);
+        view.setTextColor(activity.getColor(android.R.color.black));
     }
 
     private static int dp(AppCompatActivity activity, int value) {

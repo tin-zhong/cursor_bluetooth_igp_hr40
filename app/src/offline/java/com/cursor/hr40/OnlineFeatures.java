@@ -19,6 +19,22 @@ public final class OnlineFeatures {
         return "运动检测 v" + versionName;
     }
 
+    public static boolean showFileManagement() {
+        return true;
+    }
+
+    public static boolean showHistoryManagement() {
+        return true;
+    }
+
+    public static boolean runMaintenanceCleanup() {
+        return true;
+    }
+
+    public static boolean workoutDetailShowsDateFilter() {
+        return false;
+    }
+
     public static String headerUserName(Context context) {
         UserProfile profile = ProfileStore.load(context);
         if (profile == null || profile.name == null || profile.name.trim().isEmpty()) {

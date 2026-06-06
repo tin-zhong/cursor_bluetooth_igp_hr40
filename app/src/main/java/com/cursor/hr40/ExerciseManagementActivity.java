@@ -1,10 +1,8 @@
 package com.cursor.hr40;
 
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -47,10 +45,7 @@ public final class ExerciseManagementActivity extends AppCompatActivity {
         });
         root.addView(addButton, PageScaffold.matchWrap());
 
-        listContainer = new LinearLayout(this);
-        listContainer.setOrientation(LinearLayout.VERTICAL);
-        root.addView(listContainer, PageScaffold.matchWrap());
-
+        listContainer = PageScaffold.contentArea(this, root);
         OnlineFeatures.refreshExerciseList(this, this::reloadList);
     }
 
@@ -62,21 +57,21 @@ public final class ExerciseManagementActivity extends AppCompatActivity {
 
     private void reloadList() {
         listContainer.removeAllViews();
+        listContainer.setGravity(Gravity.TOP);
+        listContainer.setMinimumHeight(0);
         exerciseNames.clear();
         try {
             exerciseNames.addAll(ExerciseStore.loadExercises(this));
         } catch (IOException ignored) {
         }
         if (exerciseNames.isEmpty()) {
-            TextView empty = new TextView(this);
-            empty.setText("暂无动作，请先添加。");
-            empty.setTextColor(Color.DKGRAY);
-            PageScaffold.styleBody(this, empty);
-            listContainer.addView(empty, PageScaffold.matchWrap());
+            PageScaffold.showCenteredEmpty(this, listContainer, "暂无数据");
             return;
         }
+
         int horizontalPadding = Math.round(16 * getResources().getDisplayMetrics().density);
-        int verticalPadding = Math.round(8 * getResources().getDisplayMetrics().density);
+        int verticalPadding = Math.round(10 * getResources().getDisplayMetrics().density);
+        int rowSpacing = Math.round(10 * getResources().getDisplayMetrics().density);
         for (String name : new ArrayList<>(exerciseNames)) {
             MaterialCardView rowCard = new MaterialCardView(this);
             rowCard.setCardElevation(0f);
@@ -84,9 +79,9 @@ public final class ExerciseManagementActivity extends AppCompatActivity {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            TextView nameView = new TextView(this);
+            android.widget.TextView nameView = new android.widget.TextView(this);
             nameView.setText(name);
-            PageScaffold.styleBody(this, nameView);
+            PageScaffold.styleListItemText(this, nameView);
             LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
             nameView.setLayoutParams(nameParams);
             MaterialButton deleteButton = new MaterialButton(
@@ -103,7 +98,9 @@ public final class ExerciseManagementActivity extends AppCompatActivity {
             row.addView(nameView);
             row.addView(deleteButton);
             rowCard.addView(row);
-            listContainer.addView(rowCard, PageScaffold.matchWrap());
+            LinearLayout.LayoutParams cardParams = PageScaffold.matchWrap();
+            cardParams.setMargins(0, 0, 0, rowSpacing);
+            listContainer.addView(rowCard, cardParams);
         }
     }
 }
