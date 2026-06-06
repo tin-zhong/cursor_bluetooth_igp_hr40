@@ -40,6 +40,10 @@ if [[ "${actual}" != "${HR40_DIST_PRIMARY_SHA256}" ]]; then
 fi
 
 mkdir -p dist
-cp "${BUILT_APK}" "${OUTPUT_APK}"
 cp "${BUILT_APK}" "${ROOT_DIR}/dist/hr40-offline-fitness-debug.apk"
-echo "OK: ${OUTPUT_APK} (v3.5.0 distribution signature)"
+if [[ "${RELEASE_DIST_APK:-}" == "1" ]]; then
+  cp "${BUILT_APK}" "${OUTPUT_APK}"
+  echo "OK: ${OUTPUT_APK} + dist/hr40-offline-fitness-debug.apk (v3.5.0 distribution signature)"
+else
+  echo "OK: dist/hr40-offline-fitness-debug.apk (debug-only; set RELEASE_DIST_APK=1 for formal release)"
+fi

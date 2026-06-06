@@ -35,13 +35,22 @@ export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platfo
 ./scripts/check_keystore_matches_distribution.sh   # 确认密钥库与仓库一致
 ```
 
-为了便于平板测试，请安装 `dist/` 中最新版本 APK：
+### 分发策略（debug 优先）
+
+当前阶段 **Offline / Online 均只发布 debug 包**，待功能验收通过后再生成正式版 `v{version}.apk`。
+
+| 类型 | 路径 | 说明 |
+|------|------|------|
+| **测试用（当前推荐）** | `dist/hr40-offline-fitness-debug.apk` | 构建脚本默认只更新此文件 |
+| 正式版（暂缓） | `dist/hr40-offline-fitness-v{version}.apk` | 需显式执行 `RELEASE_DIST_APK=1 ./scripts/build_dist_apk.sh` |
+
+为了便于平板测试，请安装 `dist/` 中最新 **debug** APK：
 
 ```text
-dist/hr40-offline-fitness-v3.5.1.apk
+dist/hr40-offline-fitness-debug.apk
 ```
 
-下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-v3.5.1.apk` → **Download raw file**。
+下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-debug.apk` → **Download raw file**。
 
 ## v3.5.1 更新
 
@@ -160,7 +169,8 @@ dist/hr40-offline-fitness-v3.5.1.apk
 
 ## 安装与升级
 
-- **新安装 / 推荐**：`dist/hr40-offline-fitness-v3.5.1.apk`（签名 SHA-256：`7ca2098f…`，见 `dist/SIGNING.md`）
+- **新安装 / 当前推荐**：`dist/hr40-offline-fitness-debug.apk`（与正式包同签名，见 `dist/SIGNING.md`）
+- **正式版（暂缓发布）**：`dist/hr40-offline-fitness-v3.5.1.apk`（签名 SHA-256：`7ca2098f…`）
 - 从 **v3.5.0** 升级：直接覆盖安装 v3.5.1（同签名线）
 - 从 **v3.4.8、v3.10.0** 等旧包升级：先卸载旧版，再安装 v3.5.1（签名已更换，无法覆盖安装）
 - 从 **v3.4.5** 线升级：同样需卸载后安装 v3.5.1

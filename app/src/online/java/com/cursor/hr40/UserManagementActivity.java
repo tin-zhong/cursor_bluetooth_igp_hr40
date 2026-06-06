@@ -3,7 +3,9 @@ package com.cursor.hr40;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputType;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,9 +30,15 @@ public final class UserManagementActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(24), dp(32), dp(24), dp(24));
+        root.setPadding(dp(24), dp(32), dp(24), dp(32));
+        root.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView title = new TextView(this);
         title.setText("用户管理");
@@ -48,20 +56,20 @@ public final class UserManagementActivity extends AppCompatActivity {
         ageInput = addField(root, "年龄", InputType.TYPE_CLASS_NUMBER);
 
         LinearLayout sexRow = new LinearLayout(this);
-        maleButton = new MaterialButton(this);
-        maleButton.setText("男");
-        femaleButton = new MaterialButton(this);
-        femaleButton.setText("女");
+        sexRow.setOrientation(LinearLayout.HORIZONTAL);
+        maleButton = outlinedButton("男");
+        femaleButton = outlinedButton("女");
         maleButton.setOnClickListener(v -> setSexSelected(false));
         femaleButton.setOnClickListener(v -> setSexSelected(true));
-        sexRow.addView(maleButton);
-        sexRow.addView(femaleButton);
-        root.addView(sexRow);
+        sexRow.addView(maleButton, weighted());
+        sexRow.addView(femaleButton, weighted());
+        root.addView(sexRow, matchWrap());
 
         MaterialButton saveProfileButton = new MaterialButton(this);
         saveProfileButton.setText("保存资料");
+        saveProfileButton.setAllCaps(false);
         saveProfileButton.setOnClickListener(v -> saveProfile());
-        root.addView(saveProfileButton);
+        root.addView(saveProfileButton, matchWrap());
 
         TextView accountHint = new TextView(this);
         accountHint.setText("账户与安全");
@@ -72,23 +80,18 @@ public final class UserManagementActivity extends AppCompatActivity {
         email.setText("邮箱: " + SupabaseSessionStore.getEmail(this));
         root.addView(email);
 
-        MaterialButton changePassword = new MaterialButton(this);
-        changePassword.setText("修改密码");
-        changePassword.setOnClickListener(v -> showChangePasswordDialog());
-        root.addView(changePassword);
+        MaterialButton changePassword = materialButton("修改密码", v -> showChangePasswordDialog());
+        root.addView(changePassword, matchWrap());
 
-        MaterialButton deleteAccount = new MaterialButton(this);
-        deleteAccount.setText("注销账户");
-        deleteAccount.setOnClickListener(v -> confirmDeleteStep1());
-        root.addView(deleteAccount);
+        MaterialButton deleteAccount = materialButton("注销账户", v -> confirmDeleteStep1());
+        root.addView(deleteAccount, matchWrap());
 
-        MaterialButton backButton = new MaterialButton(this);
-        backButton.setText("返回");
-        backButton.setOnClickListener(v -> finish());
-        root.addView(backButton);
+        MaterialButton backButton = materialButton("返回", v -> finish());
+        root.addView(backButton, matchWrap());
 
         loadProfileFields();
-        setContentView(root);
+        scrollView.addView(root);
+        setContentView(scrollView);
     }
 
     private TextInputEditText addField(LinearLayout root, String hint, int inputType) {
@@ -97,7 +100,7 @@ public final class UserManagementActivity extends AppCompatActivity {
         TextInputEditText input = new TextInputEditText(this);
         input.setInputType(inputType);
         layout.addView(input);
-        root.addView(layout);
+        root.addView(layout, matchWrap());
         return input;
     }
 
@@ -116,8 +119,8 @@ public final class UserManagementActivity extends AppCompatActivity {
 
     private void setSexSelected(boolean female) {
         femaleSelected = female;
-        maleButton.setEnabled(female);
-        femaleButton.setEnabled(!female);
+        styleSexButton(maleButton, !female);
+        styleSexButton(femaleButton, female);
     }
 
     private void saveProfile() {
@@ -227,6 +230,37 @@ public final class UserManagementActivity extends AppCompatActivity {
                         Toast.makeText(this, "注销失败: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
+    }
+
+    private MaterialButton materialButton(String text, android.view.View.OnClickListener listener) {
+        MaterialButton button = new MaterialButton(this);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setOnClickListener(listener);
+        return button;
+    }
+
+    private MaterialButton outlinedButton(String text) {
+        MaterialButton button = new MaterialButton(
+                this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(text);
+        button.setAllCaps(false);
+        return button;
+    }
+
+    private void styleSexButton(MaterialButton button, boolean selected) {
+        button.setStrokeColorResource(selected ? R.color.md_primary : android.R.color.darker_gray);
+        button.setTextColor(getColor(selected ? R.color.md_primary : android.R.color.darker_gray));
+    }
+
+    private LinearLayout.LayoutParams matchWrap() {
+        return new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+    }
+
+    private LinearLayout.LayoutParams weighted() {
+        return new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
     }
 
     private int dp(int value) {

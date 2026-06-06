@@ -85,12 +85,10 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto p-4 sm:p-6">
-    <AppHeader :title="headerTitle">
-      <template #actions>
-        <UButton to="/" color="neutral" variant="ghost" label="返回" />
-      </template>
-    </AppHeader>
+  <div class="max-w-6xl mx-auto p-4 sm:p-6">
+    <UButton to="/" color="neutral" variant="ghost" icon="i-lucide-arrow-left" label="返回列表" class="mb-4" />
+
+    <AppHeader :title="headerTitle" />
 
     <div v-if="loading" class="text-muted">加载中……</div>
 

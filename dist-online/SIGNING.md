@@ -10,6 +10,8 @@
 
 维护者发布新版本时，请始终执行 `./scripts/build_dist_online_apk.sh`，脚本会强制使用并校验上述密钥库，**不要**使用本机临时 debug 证书或离线版 `keystore/hr40-distribution.keystore`。
 
+当前阶段默认只更新 `hr40-online-fitness-debug.apk`；正式版 `v{version}.apk` 需在验收通过后执行 `RELEASE_DIST_APK=1 ./scripts/build_dist_online_apk.sh`。
+
 ## 与离线版
 
 Online 版使用独立密钥库与包名（`com.cursor.hr40.online`），与离线版 `com.cursor.hr40` **可同时安装**，签名线也相互独立。详见 `dist-online/keystore/README.md`。
