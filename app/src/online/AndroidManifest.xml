@@ -17,7 +17,7 @@
             android:name=".OnlineProfileActivity"
             android:exported="false" />
         <activity
-            android:name=".AccountActivity"
+            android:name=".UserManagementActivity"
             android:exported="false" />
     </application>
 </manifest>

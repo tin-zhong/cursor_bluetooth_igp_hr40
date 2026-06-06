@@ -1,7 +1,7 @@
 package com.cursor.hr40;
 
 import android.content.Context;
-import android.widget.LinearLayout;
+import com.google.android.material.button.MaterialButton;
 
 import org.json.JSONException;
 
@@ -15,7 +15,14 @@ public final class OnlineFeatures {
         return "HR40 离线运动监测 v" + versionName;
     }
 
-    public static void attachAccountButton(MainActivity activity, LinearLayout root) {
+    public static String profileButtonLabel() {
+        return "编辑运动人员资料";
+    }
+
+    public static void configureProfileButton(MainActivity activity, MaterialButton button) {
+        button.setText(profileButtonLabel());
+        button.setAllCaps(false);
+        button.setOnClickListener(v -> activity.openProfileEditor());
     }
 
     public static void onMainReady(MainActivity activity, Runnable onReady) {
