@@ -162,6 +162,7 @@ async function deleteAccount() {
     <AppHeader
       :title="headerTitle"
       :subtitle="user?.email || undefined"
+      :show-logout="false"
     />
 
     <UAlert v-if="message" color="success" :title="message" class="mb-4" />
@@ -172,11 +173,15 @@ async function deleteAccount() {
         <h2 class="font-medium mb-3">运动人员资料</h2>
         <form class="space-y-3" @submit.prevent="saveUserProfile">
           <div class="flex items-center gap-4">
-            <label class="w-32 shrink-0 text-sm text-default">姓名或昵称</label>
+            <label class="w-32 shrink-0 text-sm text-default">
+              姓名或昵称<span class="text-error ml-0.5">*</span>
+            </label>
             <UInput v-model="name" class="flex-1" placeholder="请输入姓名或昵称" />
           </div>
           <div class="flex items-center gap-4">
-            <label class="w-32 shrink-0 text-sm text-default">身高 (cm)</label>
+            <label class="w-32 shrink-0 text-sm text-default">
+              身高 (cm)<span class="text-error ml-0.5">*</span>
+            </label>
             <UInput
               v-model="heightCm"
               type="text"
@@ -186,7 +191,9 @@ async function deleteAccount() {
             />
           </div>
           <div class="flex items-center gap-4">
-            <label class="w-32 shrink-0 text-sm text-default">体重 (kg)</label>
+            <label class="w-32 shrink-0 text-sm text-default">
+              体重 (kg)<span class="text-error ml-0.5">*</span>
+            </label>
             <UInput
               v-model="weightKg"
               type="text"
@@ -196,7 +203,9 @@ async function deleteAccount() {
             />
           </div>
           <div class="flex items-center gap-4">
-            <label class="w-32 shrink-0 text-sm text-default">年龄</label>
+            <label class="w-32 shrink-0 text-sm text-default">
+              年龄<span class="text-error ml-0.5">*</span>
+            </label>
             <UInput
               v-model="age"
               type="text"
@@ -206,7 +215,9 @@ async function deleteAccount() {
             />
           </div>
           <div class="flex items-center gap-4">
-            <span class="w-32 shrink-0 text-sm text-default">性别</span>
+            <span class="w-32 shrink-0 text-sm text-default">
+              性别<span class="text-error ml-0.5">*</span>
+            </span>
             <URadioGroup
               v-model="sex"
               class="flex-1"

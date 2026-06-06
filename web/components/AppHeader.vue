@@ -1,8 +1,11 @@
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
   title: string;
   subtitle?: string;
-}>();
+  showLogout?: boolean;
+}>(), {
+  showLogout: true,
+});
 
 const supabase = useSupabaseClient();
 
@@ -20,7 +23,13 @@ async function logout() {
     </div>
     <div class="flex items-center gap-2">
       <slot name="actions" />
-      <UButton color="neutral" variant="soft" label="退出" @click="logout" />
+      <UButton
+        v-if="showLogout"
+        color="neutral"
+        variant="soft"
+        label="退出"
+        @click="logout"
+      />
     </div>
   </div>
 </template>
