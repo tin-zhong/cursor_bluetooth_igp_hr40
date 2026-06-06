@@ -79,7 +79,7 @@ public final class SupabaseApiClient {
         putAuth("/auth/v1/user", body);
     }
 
-    public void deleteAccount() throws IOException, ApiException {
+    public void deleteAccount() throws IOException, JSONException, ApiException {
         postRest("/rest/v1/rpc/delete_account", new JSONObject(), "return=minimal");
         SupabaseSessionStore.clear(context);
         SyncStateStore.clear(context);
