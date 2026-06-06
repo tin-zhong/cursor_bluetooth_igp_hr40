@@ -158,12 +158,23 @@ from generate_series(0, 30) as gs;
 | `service_role` | 服务端管理 | 绝不提交 |
 | `SUPABASE_ACCESS_TOKEN` | CLI 推迁移 | GitHub Secrets，用完可撤销 |
 
-## 七、Android 后续接入
+## 七、Android Online 版
 
-1. 增加 `INTERNET` 权限
-2. 用 Supabase REST API 或 Android SDK
-3. 训练结束后上传 `workout_records` + `heart_rate_samples` + `strength_sets`
-4. `local_id` 对应 App 内 session UUID，用于去重
+构建：
+
+```bash
+bash scripts/build_dist_online_apk.sh
+```
+
+输出：`dist-online/hr40-online-fitness-v3.5.1.apk`（包名 `com.cursor.hr40.online`）
+
+已实现：
+
+1. 注册 / 登录 / 强制填写资料
+2. 账户管理（改密码、注销）
+3. 动作管理与 Web 共用 `exercises` 表
+4. 训练结束后自动同步 `workout_records` + 心率 + 力量组
+5. 启动时拉取云端动作并补传未同步训练
 
 ## 八、生产环境
 

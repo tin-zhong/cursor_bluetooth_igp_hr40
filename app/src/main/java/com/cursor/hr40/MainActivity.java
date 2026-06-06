@@ -134,9 +134,11 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         heartRateManager = new BleHeartRateManager(this, this);
         trainingCountdownTimer = new TrainingCountdownTimer(this);
         buildUi();
-        reloadExerciseNames();
-        loadLatestWorkout();
-        updateWorkoutUi();
+        OnlineFeatures.onMainReady(this, () -> {
+            reloadExerciseNames();
+            loadLatestWorkout();
+            updateWorkoutUi();
+        });
         if (profile == null) {
             showProfileDialog(false);
         } else if (shouldForceWeeklyWeightUpdate()) {
@@ -558,11 +560,13 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
             return;
         }
         lastCompletedSession = activeSession;
+        WorkoutSession completedSession = activeSession;
         activeSession = null;
         pausedDurationMillis = 0L;
         stopUiSecondTick();
         updateWorkoutUi();
         showToast("运动已结束，可按需导出 PDF");
+        OnlineFeatures.onWorkoutArchived(this, completedSession);
     }
 
     private List<WorkoutSession> collectExportableSessions() {
@@ -833,6 +837,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                 String sex = femaleSelected[0] ? UserProfile.SEX_FEMALE : UserProfile.SEX_MALE;
                 profile = new UserProfile(name, height, weight, age, sex, System.currentTimeMillis());
                 ProfileStore.save(this, profile);
+                OnlineFeatures.onProfileSaved(this, profile);
                 markWeightPromptHandledForCurrentWeek();
                 dialog.dismiss();
             } catch (NumberFormatException | JSONException e) {
@@ -900,6 +905,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                                 profile.sex,
                                 profile.createdAtMillis);
                         ProfileStore.save(this, profile);
+                        OnlineFeatures.onProfileSaved(this, profile);
                         markWeightPromptHandledForCurrentWeek();
                         dialog.dismiss();
                     } catch (NumberFormatException | JSONException e) {
@@ -1403,14 +1409,11 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                     new MaterialAlertDialogBuilder(MainActivity.this)
                             .setTitle("删除动作")
                             .setMessage("确定删除 \"" + name + "\" 吗？")
-                            .setPositiveButton("删除", (d, w) -> {
-                                try {
-                                    ExerciseStore.deleteExercise(MainActivity.this, name);
-                                    refreshHolder[0].run();
-                                } catch (IOException | JSONException e) {
-                                    showToast("删除失败: " + e.getMessage());
-                                }
-                            })
+                            .setPositiveButton("删除", (d, w) -> OnlineFeatures.deleteExercise(
+                                    MainActivity.this,
+                                    name,
+                                    refreshHolder[0],
+                                    () -> { }))
                             .setNegativeButton("取消", null)
                             .show();
                 });
@@ -1433,8 +1436,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                 showToast("请输入动作名称");
                 return;
             }
-            try {
-                ExerciseStore.addExercise(this, name);
+            OnlineFeatures.addExercise(this, name, () -> {
                 addInput.setText("");
                 refreshHolder[0].run();
                 for (int i = 0; i < exerciseNames.size(); i++) {
@@ -1443,9 +1445,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                         break;
                     }
                 }
-            } catch (IOException | JSONException e) {
-                showToast("添加失败: " + e.getMessage());
-            }
+            }, () -> { });
         }));
         refreshHolder[0].run();
         dialog.show();
@@ -1611,7 +1611,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
-    private void showToast(String message) {
+    void showToast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 

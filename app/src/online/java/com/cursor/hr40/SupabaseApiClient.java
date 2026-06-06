@@ -7,6 +7,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.MediaType;
@@ -78,6 +82,100 @@ public final class SupabaseApiClient {
     public void deleteAccount() throws IOException, ApiException {
         postRest("/rest/v1/rpc/delete_account", new JSONObject(), "return=minimal");
         SupabaseSessionStore.clear(context);
+        SyncStateStore.clear(context);
+    }
+
+    public List<CloudExercise> fetchExercises() throws IOException, JSONException, ApiException {
+        String path = "/rest/v1/exercises?select=id,name&order=name.asc";
+        JSONArray rows = new JSONArray(getRest(path));
+        List<CloudExercise> exercises = new ArrayList<>();
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.getJSONObject(i);
+            exercises.add(new CloudExercise(
+                    row.getString("id"),
+                    row.getString("name")));
+        }
+        return exercises;
+    }
+
+    public void addExercise(String name) throws IOException, JSONException, ApiException {
+        JSONObject body = new JSONObject();
+        body.put("user_id", requireUserId());
+        body.put("name", name.trim());
+        postRest("/rest/v1/exercises", body, "return=minimal");
+    }
+
+    public void deleteExerciseByName(String name) throws IOException, JSONException, ApiException {
+        String trimmed = name.trim();
+        String encodedName = URLEncoder.encode(trimmed, StandardCharsets.UTF_8);
+        String path = "/rest/v1/exercises?name=eq." + encodedName + "&select=id";
+        JSONArray rows = new JSONArray(getRest(path));
+        if (rows.length() == 0) {
+            return;
+        }
+        String exerciseId = rows.getJSONObject(0).getString("id");
+        deleteRest("/rest/v1/exercises?id=eq." + exerciseId);
+    }
+
+    public void syncWorkout(WorkoutSession session) throws IOException, JSONException, ApiException {
+        String userId = requireUserId();
+        JSONObject workoutBody = new JSONObject();
+        workoutBody.put("user_id", userId);
+        workoutBody.put("local_id", session.id);
+        workoutBody.put("start_millis", session.startMillis);
+        workoutBody.put("end_millis", session.endMillis);
+        workoutBody.put("workout_type", session.workoutType);
+        workoutBody.put("device_id", android.os.Build.MODEL);
+
+        String workoutResponse = postRest(
+                "/rest/v1/workout_records?on_conflict=user_id,local_id",
+                workoutBody,
+                "resolution=merge-duplicates,return=representation");
+        JSONArray workoutRows = new JSONArray(workoutResponse);
+        if (workoutRows.length() == 0) {
+            throw new ApiException("同步训练记录失败");
+        }
+        String workoutId = workoutRows.getJSONObject(0).getString("id");
+
+        deleteRest("/rest/v1/heart_rate_samples?workout_id=eq." + workoutId);
+        deleteRest("/rest/v1/strength_sets?workout_id=eq." + workoutId);
+
+        JSONArray sampleRows = new JSONArray();
+        for (HeartRateSample sample : session.samples()) {
+            JSONObject row = new JSONObject();
+            row.put("workout_id", workoutId);
+            row.put("user_id", userId);
+            row.put("timestamp_millis", sample.timestampMillis);
+            row.put("bpm", sample.bpm);
+            row.put("contact_supported", sample.contactSupported);
+            row.put("contact_detected", sample.contactDetected);
+            if (sample.energyExpendedKj != null) {
+                row.put("energy_expended_kj", sample.energyExpendedKj);
+            }
+            row.put("rr_interval_count", sample.rrIntervalCount);
+            sampleRows.put(row);
+        }
+        if (sampleRows.length() > 0) {
+            postRestArray("/rest/v1/heart_rate_samples", sampleRows, "return=minimal");
+        }
+
+        JSONArray setRows = new JSONArray();
+        for (StrengthSet set : session.strengthSets()) {
+            JSONObject row = new JSONObject();
+            row.put("workout_id", workoutId);
+            row.put("user_id", userId);
+            row.put("exercise_name", set.exerciseName);
+            row.put("weight", set.weight);
+            row.put("weight_unit", set.weightUnit);
+            row.put("reps", set.reps);
+            row.put("timestamp_millis", set.timestampMillis);
+            setRows.put(row);
+        }
+        if (setRows.length() > 0) {
+            postRestArray("/rest/v1/strength_sets", setRows, "return=minimal");
+        }
+
+        SyncStateStore.markWorkoutSynced(context, session.id);
     }
 
     private AuthResult parseAuthResult(JSONObject json) throws JSONException {
@@ -134,9 +232,18 @@ public final class SupabaseApiClient {
 
     private String postRest(String path, JSONObject body, String prefer)
             throws IOException, JSONException, ApiException {
+        return postRestRaw(path, body.toString(), prefer);
+    }
+
+    private String postRestArray(String path, JSONArray body, String prefer)
+            throws IOException, ApiException {
+        return postRestRaw(path, body.toString(), prefer);
+    }
+
+    private String postRestRaw(String path, String jsonBody, String prefer) throws IOException, ApiException {
         Request.Builder builder = new Request.Builder()
                 .url(BuildConfig.SUPABASE_URL + path)
-                .post(RequestBody.create(body.toString(), JSON))
+                .post(RequestBody.create(jsonBody, JSON))
                 .header("apikey", BuildConfig.SUPABASE_ANON_KEY)
                 .header("Authorization", "Bearer " + SupabaseSessionStore.getAccessToken(context))
                 .header("Content-Type", "application/json");
@@ -144,6 +251,16 @@ public final class SupabaseApiClient {
             builder.header("Prefer", prefer);
         }
         return executeForBody(builder.build());
+    }
+
+    private void deleteRest(String path) throws IOException, ApiException {
+        Request request = new Request.Builder()
+                .url(BuildConfig.SUPABASE_URL + path)
+                .delete()
+                .header("apikey", BuildConfig.SUPABASE_ANON_KEY)
+                .header("Authorization", "Bearer " + SupabaseSessionStore.getAccessToken(context))
+                .build();
+        executeForBody(request);
     }
 
     private JSONObject executeForJson(Request request) throws IOException, JSONException, ApiException {
@@ -173,7 +290,13 @@ public final class SupabaseApiClient {
             if (json.has("error_description")) {
                 return json.getString("error_description");
             }
+            if (json.has("code") && "23505".equals(json.optString("code"))) {
+                return "该动作名称已存在";
+            }
         } catch (JSONException ignored) {
+        }
+        if (code == 409) {
+            return "数据冲突，请刷新后重试";
         }
         return "请求失败 (" + code + ")";
     }
@@ -229,6 +352,16 @@ public final class SupabaseApiClient {
 
         UserProfile toLocalProfile() {
             return new UserProfile(name, heightCm, weightKg, age, sex, System.currentTimeMillis());
+        }
+    }
+
+    public static final class CloudExercise {
+        public final String id;
+        public final String name;
+
+        CloudExercise(String id, String name) {
+            this.id = id;
+            this.name = name;
         }
     }
 
