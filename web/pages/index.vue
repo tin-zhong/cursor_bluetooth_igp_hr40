@@ -37,6 +37,7 @@ function formatDateTime(millis: number) {
   <div class="max-w-3xl mx-auto p-4 sm:p-6">
     <AppHeader :title="headerTitle">
       <template #actions>
+        <UButton to="/exercises" color="neutral" variant="ghost" label="动作管理" />
         <UButton to="/account" color="neutral" variant="ghost" label="账户管理" />
       </template>
     </AppHeader>
