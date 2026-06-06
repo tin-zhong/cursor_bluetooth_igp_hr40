@@ -22,6 +22,26 @@ android {
         versionName "3.5.1"
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
+    flavorDimensions "mode"
+    productFlavors {
+        offline {
+            dimension "mode"
+            buildConfigField "boolean", "ONLINE_ENABLED", "false"
+        }
+        online {
+            dimension "mode"
+            applicationIdSuffix ".online"
+            buildConfigField "boolean", "ONLINE_ENABLED", "true"
+            buildConfigField "String", "SUPABASE_URL", "\"https://erukqyqwzbutwlaerzfn.supabase.co\""
+            buildConfigField "String", "SUPABASE_ANON_KEY", "\"sb_publishable_xsxOxCx94LAvVoqo1xzWDA_xyRdglDV\""
+            resValue "string", "app_name", "HR40 Online Fitness"
+        }
+    }
+
     signingConfigs {
         if (distributionKeystoreFile != null && distributionKeystoreFile.exists()) {
             distribution {
@@ -52,4 +72,5 @@ dependencies {
     implementation "com.google.android.material:material:1.12.0"
     implementation "androidx.room:room-runtime:2.8.4"
     annotationProcessor "androidx.room:room-compiler:2.8.4"
+    onlineImplementation "com.squareup.okhttp3:okhttp:4.12.0"
 }

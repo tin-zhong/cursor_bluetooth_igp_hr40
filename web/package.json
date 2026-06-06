@@ -1,17 +1,23 @@
 {
   "name": "hr40-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "nuxt dev",
+    "build": "nuxt build --preset github_pages",
+    "generate": "nuxt generate --preset github_pages",
+    "preview": "nuxt preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.8"
+    "@nuxt/ui": "^3.0.2",
+    "@nuxtjs/supabase": "^1.4.6",
+    "nuxt": "^3.16.2",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "vite": "^6.2.4"
+    "@iconify-json/lucide": "^1.2.35",
+    "typescript": "^5.8.2"
   }
 }
