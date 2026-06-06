@@ -2,6 +2,7 @@ package com.cursor.hr40;
 
 import android.app.Activity;
 import android.content.Context;
+import android.view.View;
 import android.widget.TextView;
 
 import com.google.android.material.button.MaterialButton;
@@ -39,6 +40,22 @@ public final class OnlineFeatures {
         button.setText(profileButtonLabel());
         button.setAllCaps(false);
         button.setOnClickListener(v -> activity.openProfileEditor());
+    }
+
+    public static void onMainResume(MainActivity activity, Runnable onRefreshed) {
+        onRefreshed.run();
+    }
+
+    public static void refreshExerciseList(Activity activity, Runnable onDone) {
+        onDone.run();
+    }
+
+    public static void refreshWorkoutList(Activity activity, Runnable onDone) {
+        onDone.run();
+    }
+
+    public static void configureLogoutButton(MainActivity activity, MaterialButton button) {
+        button.setVisibility(View.GONE);
     }
 
     public static void onMainReady(MainActivity activity, Runnable onReady) {

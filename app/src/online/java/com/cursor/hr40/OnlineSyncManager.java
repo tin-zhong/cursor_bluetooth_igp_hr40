@@ -33,6 +33,28 @@ public final class OnlineSyncManager {
         ExerciseStore.saveExercises(context, names);
     }
 
+    public static void pullProfileToLocal(Context context) throws IOException, JSONException, SupabaseApiClient.ApiException {
+        SupabaseApiClient.CloudProfile profile = new SupabaseApiClient(context).fetchProfile();
+        if (profile != null && profile.profileCompleted) {
+            ProfileStore.save(context, profile.toLocalProfile());
+        }
+    }
+
+    public static void pullWorkoutsToLocal(Context context) throws IOException, JSONException, SupabaseApiClient.ApiException {
+        SupabaseApiClient client = new SupabaseApiClient(context);
+        for (SupabaseApiClient.CloudWorkout cloudWorkout : client.fetchWorkouts()) {
+            WorkoutSession session = cloudWorkout.toSession();
+            WorkoutRepository.saveToDatabase(context, session);
+            SyncStateStore.markWorkoutSynced(context, session.id);
+        }
+    }
+
+    public static void refreshFromCloud(Context context) throws IOException, JSONException, SupabaseApiClient.ApiException {
+        pullProfileToLocal(context);
+        pullExercisesToLocal(context);
+        pullWorkoutsToLocal(context);
+    }
+
     public static void syncWorkout(Context context, WorkoutSession session)
             throws IOException, JSONException, SupabaseApiClient.ApiException {
         if (session == null || SyncStateStore.isWorkoutSynced(context, session.id)) {
@@ -52,10 +74,55 @@ public final class OnlineSyncManager {
     public static void runInitialSync(Context context, SyncCallback callback) {
         new Thread(() -> {
             try {
-                pullExercisesToLocal(context);
+                refreshFromCloud(context);
                 syncPendingWorkouts(context);
                 if (callback != null) {
                     callback.onSuccess("云端数据已同步");
+                }
+            } catch (Exception e) {
+                if (callback != null) {
+                    callback.onError(e.getMessage() == null ? "同步失败" : e.getMessage());
+                }
+            }
+        }).start();
+    }
+
+    public static void refreshFromCloudAsync(Context context, SyncCallback callback) {
+        new Thread(() -> {
+            try {
+                refreshFromCloud(context);
+                if (callback != null) {
+                    callback.onSuccess(null);
+                }
+            } catch (Exception e) {
+                if (callback != null) {
+                    callback.onError(e.getMessage() == null ? "同步失败" : e.getMessage());
+                }
+            }
+        }).start();
+    }
+
+    public static void pullExercisesAsync(Context context, SyncCallback callback) {
+        new Thread(() -> {
+            try {
+                pullExercisesToLocal(context);
+                if (callback != null) {
+                    callback.onSuccess(null);
+                }
+            } catch (Exception e) {
+                if (callback != null) {
+                    callback.onError(e.getMessage() == null ? "同步失败" : e.getMessage());
+                }
+            }
+        }).start();
+    }
+
+    public static void pullWorkoutsAsync(Context context, SyncCallback callback) {
+        new Thread(() -> {
+            try {
+                pullWorkoutsToLocal(context);
+                if (callback != null) {
+                    callback.onSuccess(null);
                 }
             } catch (Exception e) {
                 if (callback != null) {

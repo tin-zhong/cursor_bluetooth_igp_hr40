@@ -11,10 +11,16 @@ import com.google.android.material.button.MaterialButton;
 import java.util.List;
 
 public final class WorkoutDetailPickerActivity extends AppCompatActivity {
+    private LinearLayout root;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        LinearLayout root = PageScaffold.open(this, "查看运动明细");
+        root = PageScaffold.open(this, "查看运动明细");
+        OnlineFeatures.refreshWorkoutList(this, this::populateList);
+    }
+
+    private void populateList() {
         List<WorkoutSession> sessions = WorkoutSessionLabels.collectExportableSessions(this);
 
         if (sessions.isEmpty()) {
