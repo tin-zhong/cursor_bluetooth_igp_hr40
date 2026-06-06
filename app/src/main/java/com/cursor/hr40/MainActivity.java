@@ -72,6 +72,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private boolean reconnectScheduled;
     private boolean heartRateLinkActive;
 
+    private TextView headerUserNameText;
     private TextView statusText;
     private TextView bpmText;
     private TextView durationText;
@@ -261,6 +262,14 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         fixedSection.addView(title, matchWrap());
 
+        headerUserNameText = new TextView(this);
+        headerUserNameText.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout.LayoutParams userNameParams = matchWrap();
+        userNameParams.bottomMargin = dp(4);
+        headerUserNameText.setLayoutParams(userNameParams);
+        refreshHeaderUserName();
+        fixedSection.addView(headerUserNameText, userNameParams);
+
         statusText = textView("未连接心率带");
         statusText.setGravity(Gravity.CENTER_HORIZONTAL);
         statusText.setTextColor(Color.DKGRAY);
@@ -336,13 +345,16 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         countdownButton.setVisibility(View.GONE);
         root.addView(countdownButton, matchWrap());
 
-        exportButton = materialButton("导出运动记录 PDF", v -> showExportSessionDialog());
+        exportButton = materialButton("导出运动记录 PDF", v ->
+                startActivity(new Intent(this, ExportWorkoutActivity.class)));
         root.addView(exportButton, matchWrap());
 
-        detailViewButton = materialButton("查看运动明细", v -> showWorkoutDetailPickerDialog());
+        detailViewButton = materialButton("查看运动明细", v ->
+                startActivity(new Intent(this, WorkoutDetailPickerActivity.class)));
         root.addView(detailViewButton, matchWrap());
 
-        exerciseManageButton = materialButton("动作管理", v -> showExerciseManagementDialog());
+        exerciseManageButton = materialButton("动作管理", v ->
+                startActivity(new Intent(this, ExerciseManagementActivity.class)));
         root.addView(exerciseManageButton, matchWrap());
         editProfileButton = materialButton(OnlineFeatures.profileButtonLabel(), v -> {});
         OnlineFeatures.configureProfileButton(this, editProfileButton);
@@ -569,16 +581,25 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         OnlineFeatures.onWorkoutArchived(this, completedSession);
     }
 
-    private List<WorkoutSession> collectExportableSessions() {
-        List<WorkoutSession> sessions = WorkoutRepository.loadAll(this);
-        List<WorkoutSession> exportableSessions = new ArrayList<>();
-        for (WorkoutSession session : sessions) {
-            if (session.samples().isEmpty() && session.strengthSets().isEmpty()) {
-                continue;
-            }
-            exportableSessions.add(session);
+    @Override
+    protected void onResume() {
+        super.onResume();
+        reloadExerciseNames();
+        refreshHeaderUserName();
+    }
+
+    private void refreshHeaderUserName() {
+        if (headerUserNameText == null) {
+            return;
         }
-        return exportableSessions;
+        String userName = OnlineFeatures.headerUserName(this);
+        if (userName == null) {
+            headerUserNameText.setVisibility(View.GONE);
+            return;
+        }
+        headerUserNameText.setText(userName);
+        OnlineFeatures.styleHeaderUserName(headerUserNameText);
+        headerUserNameText.setVisibility(View.VISIBLE);
     }
 
     private String appVersionName() {
@@ -590,7 +611,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     private void showExportSessionDialog() {
-        List<WorkoutSession> exportableSessions = collectExportableSessions();
+        List<WorkoutSession> exportableSessions = WorkoutSessionLabels.collectExportableSessions(this);
         List<String> labels = new ArrayList<>();
         for (WorkoutSession session : exportableSessions) {
             labels.add(formatSessionLabel(session));
@@ -620,7 +641,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     private void showWorkoutDetailPickerDialog() {
-        List<WorkoutSession> sessions = collectExportableSessions();
+        List<WorkoutSession> sessions = WorkoutSessionLabels.collectExportableSessions(this);
         List<String> labels = new ArrayList<>();
         for (WorkoutSession session : sessions) {
             labels.add(formatSessionLabel(session));
@@ -1053,7 +1074,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     private void showHistoryManageDialog() {
-        List<WorkoutSession> sessions = collectExportableSessions();
+        List<WorkoutSession> sessions = WorkoutSessionLabels.collectExportableSessions(this);
         if (sessions.isEmpty()) {
             showToast("暂无历史训练记录");
             return;

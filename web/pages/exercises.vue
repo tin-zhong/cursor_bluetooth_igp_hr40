@@ -88,7 +88,7 @@ async function confirmDelete() {
   <div class="max-w-6xl mx-auto p-4 sm:p-6">
     <UButton to="/" color="neutral" variant="ghost" icon="i-lucide-arrow-left" label="返回列表" class="mb-4" />
 
-    <AppHeader :title="headerTitle" />
+    <AppHeader :title="headerTitle" :show-logout="false" />
 
     <div v-if="loading" class="text-muted">加载中……</div>
 

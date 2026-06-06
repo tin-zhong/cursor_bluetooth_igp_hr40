@@ -1,6 +1,9 @@
 package com.cursor.hr40;
 
+import android.app.Activity;
 import android.content.Context;
+import android.widget.TextView;
+
 import com.google.android.material.button.MaterialButton;
 
 import org.json.JSONException;
@@ -12,7 +15,20 @@ public final class OnlineFeatures {
     }
 
     public static String appTitle(String versionName) {
-        return "HR40 离线运动监测 v" + versionName;
+        return "运动检测 v" + versionName;
+    }
+
+    public static String headerUserName(Context context) {
+        UserProfile profile = ProfileStore.load(context);
+        if (profile == null || profile.name == null || profile.name.trim().isEmpty()) {
+            return null;
+        }
+        return profile.name.trim();
+    }
+
+    public static void styleHeaderUserName(TextView view) {
+        view.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f);
+        view.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
     }
 
     public static String profileButtonLabel() {
@@ -32,7 +48,7 @@ public final class OnlineFeatures {
     public static void onWorkoutArchived(Context context, WorkoutSession session) {
     }
 
-    public static void addExercise(MainActivity activity, String name, Runnable onSuccess, Runnable onError) {
+    public static void addExercise(Activity activity, String name, Runnable onSuccess, Runnable onError) {
         try {
             ExerciseStore.addExercise(activity, name);
             onSuccess.run();
@@ -41,7 +57,7 @@ public final class OnlineFeatures {
         }
     }
 
-    public static void deleteExercise(MainActivity activity, String name, Runnable onSuccess, Runnable onError) {
+    public static void deleteExercise(Activity activity, String name, Runnable onSuccess, Runnable onError) {
         try {
             ExerciseStore.deleteExercise(activity, name);
             onSuccess.run();
