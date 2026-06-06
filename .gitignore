@@ -5,3 +5,13 @@ local.properties
 *.iml
 .idea/
 .DS_Store
+
+# Web
+web/node_modules/
+web/dist/
+web/.env
+web/.env.local
+
+# Supabase local
+supabase/.branches
+supabase/.temp
