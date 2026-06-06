@@ -65,7 +65,7 @@ supabase/migrations/20250606000000_initial_schema.sql
 https://tin-zhong.github.io/cursor_bluetooth_igp_hr40/
 ```
 
-### Supabase 里要配的回调地址
+### Supabase 里要配的回调地址（邮箱验证必做）
 
 在 [Authentication → URL Configuration](https://supabase.com/dashboard/project/erukqyqwzbutwlaerzfn/auth/url-configuration)：
 
@@ -74,7 +74,12 @@ https://tin-zhong.github.io/cursor_bluetooth_igp_hr40/
 | Site URL | `https://tin-zhong.github.io/cursor_bluetooth_igp_hr40/` |
 | Redirect URLs | `https://tin-zhong.github.io/cursor_bluetooth_igp_hr40/**` |
 
-开发阶段建议 **关闭 Confirm email**，否则注册后要先收验证邮件。
+注意：
+
+- 必须包含仓库路径 `/cursor_bluetooth_igp_hr40/`，否则验证邮件点开会 **404**
+- 不要填 `http://localhost:5173` 或 `https://tin-zhong.github.io/`（无子路径）
+
+若暂时不想处理邮箱验证，可在 **Providers → Email** 里 **关闭 Confirm email**。
 
 ## 三、推送数据库变更（在云端 Agent / CI 中执行）
 

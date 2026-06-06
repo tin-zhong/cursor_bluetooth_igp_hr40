@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { authRedirectUrl, supabase } from './supabase.js';
 import { drawHeartRateChart } from './chart.js';
 import {
   calculateWorkoutStats,
@@ -136,7 +136,13 @@ function renderAuth(message = '') {
     const action =
       authMode === 'login'
         ? supabase.auth.signInWithPassword({ email, password })
-        : supabase.auth.signUp({ email, password });
+        : supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: authRedirectUrl(),
+            },
+          });
 
     const { error } = await action;
     if (error) {
@@ -302,8 +308,26 @@ async function renderApp() {
   await renderList();
 }
 
+async function handleAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      renderAuth(`邮箱验证失败：${error.message}`);
+      return true;
+    }
+    window.history.replaceState({}, document.title, authRedirectUrl());
+    return true;
+  }
+  return false;
+}
+
 supabase.auth.onAuthStateChange(() => {
   renderApp();
 });
 
-renderApp();
+(async () => {
+  await handleAuthCallback();
+  await renderApp();
+})();
