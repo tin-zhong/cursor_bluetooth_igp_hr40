@@ -39,8 +39,8 @@ public final class AuthActivity extends AppCompatActivity {
 
         TextView title = new TextView(this);
         title.setText(loginMode ? "登录" : "注册");
-        title.setTextSize(24f);
         title.setGravity(Gravity.CENTER_HORIZONTAL);
+        OnlineUi.stylePageTitle(title);
         root.addView(title);
 
         TextInputLayout emailLayout = new TextInputLayout(this);
@@ -59,11 +59,13 @@ public final class AuthActivity extends AppCompatActivity {
 
         MaterialButton submit = new MaterialButton(this);
         submit.setText(loginMode ? "登录" : "注册");
+        OnlineUi.styleButton(submit);
         submit.setOnClickListener(v -> submit(emailInput, passwordInput));
         root.addView(submit);
 
         MaterialButton toggle = new MaterialButton(this, null, com.google.android.material.R.attr.borderlessButtonStyle);
         toggle.setText(loginMode ? "没有账号？去注册" : "已有账号？去登录");
+        OnlineUi.styleButton(toggle);
         toggle.setOnClickListener(v -> {
             loginMode = !loginMode;
             render();

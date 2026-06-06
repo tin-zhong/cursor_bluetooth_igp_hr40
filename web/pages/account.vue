@@ -170,55 +170,65 @@ async function deleteAccount() {
     <div class="space-y-4">
       <UCard>
         <h2 class="font-medium mb-3">运动人员资料</h2>
-        <form class="space-y-4" @submit.prevent="saveUserProfile">
-          <UFormField label="姓名或昵称" required>
-            <UInput v-model="name" class="w-full" placeholder="请输入姓名或昵称" />
-          </UFormField>
-          <div class="grid grid-cols-2 gap-4">
-            <UFormField label="身高 (cm)" required>
-              <UInput
-                v-model="heightCm"
-                type="text"
-                inputmode="numeric"
-                class="w-full"
-                placeholder="请输入身高"
-              />
-            </UFormField>
-            <UFormField label="体重 (kg)" required>
-              <UInput
-                v-model="weightKg"
-                type="text"
-                inputmode="decimal"
-                class="w-full"
-                placeholder="请输入体重"
-              />
-            </UFormField>
+        <form class="space-y-3" @submit.prevent="saveUserProfile">
+          <div class="flex items-center gap-4">
+            <label class="w-32 shrink-0 text-sm text-default">姓名或昵称</label>
+            <UInput v-model="name" class="flex-1" placeholder="请输入姓名或昵称" />
           </div>
-          <UFormField label="年龄" required>
+          <div class="flex items-center gap-4">
+            <label class="w-32 shrink-0 text-sm text-default">身高 (cm)</label>
+            <UInput
+              v-model="heightCm"
+              type="text"
+              inputmode="numeric"
+              class="flex-1"
+              placeholder="请输入身高"
+            />
+          </div>
+          <div class="flex items-center gap-4">
+            <label class="w-32 shrink-0 text-sm text-default">体重 (kg)</label>
+            <UInput
+              v-model="weightKg"
+              type="text"
+              inputmode="decimal"
+              class="flex-1"
+              placeholder="请输入体重"
+            />
+          </div>
+          <div class="flex items-center gap-4">
+            <label class="w-32 shrink-0 text-sm text-default">年龄</label>
             <UInput
               v-model="age"
               type="text"
               inputmode="numeric"
-              class="w-full"
+              class="flex-1"
               placeholder="请输入年龄"
             />
-          </UFormField>
-          <UFormField label="性别" required>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="w-32 shrink-0 text-sm text-default">性别</span>
             <URadioGroup
               v-model="sex"
+              class="flex-1"
               :items="[
                 { label: '男', value: 'male' },
                 { label: '女', value: 'female' },
               ]"
             />
-          </UFormField>
-          <UButton type="submit" :loading="profileLoading" label="保存资料" />
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="w-32 shrink-0" />
+            <UButton type="submit" :loading="profileLoading" label="保存资料" />
+          </div>
         </form>
       </UCard>
 
       <UCard>
         <h2 class="font-medium mb-2">账户信息</h2>
-        <p class="text-sm text-gray-600">邮箱：{{ user?.email }}</p>
+        <div class="flex items-center gap-4">
+          <span class="w-32 shrink-0 text-sm text-default">邮箱</span>
+          <p class="text-sm text-muted">{{ user?.email }}</p>
+        </div>
       </UCard>
 
       <UCard>
