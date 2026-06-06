@@ -1,6 +1,20 @@
 # HR40 Supabase 与 Web 配置说明
 
-本项目已接入 Supabase 云端后端，并附带一个只读 Web 页面，用于跨设备查看训练记录。
+本项目在 **GitHub 云端开发**，不需要本地部署服务器。架构如下：
+
+```text
+GitHub 仓库（代码）
+    ├── supabase/migrations/   → 通过 CLI 推送到 Supabase 云端
+    └── web/                   → 通过 GitHub Actions 部署到 GitHub Pages
+
+Supabase 云端（HR40-Dev）
+    ├── 数据库 + RLS
+    ├── 用户登录
+    └── 存储训练数据
+
+浏览器 / 手机
+    └── 直接访问线上地址，无需本机 npm run dev
+```
 
 ## 已部署内容（HR40-Dev）
 
@@ -8,15 +22,63 @@
 - 行级安全（RLS）：用户只能访问自己的数据
 - 新用户注册时自动创建 `profiles` 记录
 
-迁移文件位于：
+迁移文件：
 
 ```text
 supabase/migrations/20250606000000_initial_schema.sql
 ```
 
-## 本地推送数据库变更
+## 一、你现在就能用的（无需本地环境）
 
-如需把新的 SQL 迁移推送到 Supabase：
+| 能力 | 在哪里操作 |
+|------|------------|
+| 看数据库表 | [Supabase Table Editor](https://supabase.com/dashboard/project/erukqyqwzbutwlaerzfn/editor) |
+| 建测试用户 | [Supabase Authentication → Users](https://supabase.com/dashboard/project/erukqyqwzbutwlaerzfn/auth/users) |
+| 插测试数据 | [Supabase SQL Editor](https://supabase.com/dashboard/project/erukqyqwzbutwlaerzfn/sql/new) |
+| 改登录设置 | [Supabase Auth Providers](https://supabase.com/dashboard/project/erukqyqwzbutwlaerzfn/auth/providers) |
+| 看 API 密钥 | [Supabase Project Settings → API](https://supabase.com/dashboard/project/erukqyqwzbutwlaerzfn/settings/api) |
+
+**后端已经在云上跑着了**，不依赖你电脑本地是否安装了 Node、Docker 等。
+
+## 二、部署网页（GitHub Actions → GitHub Pages）
+
+仓库已包含自动部署工作流：`.github/workflows/deploy-web.yml`  
+合并到 `main` 后，推送 `web/` 变更会自动构建并发布网页。
+
+### 首次启用（在 GitHub 网页上操作，约 3 分钟）
+
+1. 打开仓库 **Settings → Secrets and variables → Actions**
+2. 添加两个 Repository secrets：
+
+   | Name | Value |
+   |------|-------|
+   | `VITE_SUPABASE_URL` | `https://erukqyqwzbutwlaerzfn.supabase.co` |
+   | `VITE_SUPABASE_ANON_KEY` | 你的 `sb_publishable_...` 密钥 |
+
+3. **Settings → Pages → Build and deployment**
+   - Source 选 **GitHub Actions**
+4. 合并 PR 或手动触发 **Actions → Deploy Web to GitHub Pages → Run workflow**
+
+部署成功后访问：
+
+```text
+https://tin-zhong.github.io/cursor_bluetooth_igp_hr40/
+```
+
+### Supabase 里要配的回调地址
+
+在 [Authentication → URL Configuration](https://supabase.com/dashboard/project/erukqyqwzbutwlaerzfn/auth/url-configuration)：
+
+| 字段 | 值 |
+|------|-----|
+| Site URL | `https://tin-zhong.github.io/cursor_bluetooth_igp_hr40/` |
+| Redirect URLs | `https://tin-zhong.github.io/cursor_bluetooth_igp_hr40/**` |
+
+开发阶段建议 **关闭 Confirm email**，否则注册后要先收验证邮件。
+
+## 三、推送数据库变更（在云端 Agent / CI 中执行）
+
+不需要本地电脑，只要有 Access Token，在任意能跑命令的环境执行：
 
 ```bash
 export SUPABASE_ACCESS_TOKEN=你的_access_token
@@ -24,51 +86,17 @@ npx supabase link --project-ref erukqyqwzbutwlaerzfn
 npx supabase db push
 ```
 
-注意：`SUPABASE_ACCESS_TOKEN` 是账号级密钥，不要提交到 Git。
+`SUPABASE_ACCESS_TOKEN` 放在 GitHub Secrets 里，不要写进代码。
 
-## Dashboard 必做设置
-
-在 [Supabase Dashboard](https://supabase.com/dashboard/project/erukqyqwzbutwlaerzfn) 中确认：
-
-1. **Authentication → Providers → Email**：已开启
-2. **开发阶段**可将 **Confirm email** 暂时关闭，方便测试
-3. **Authentication → URL Configuration**：
-   - Site URL：`http://localhost:5173`
-   - Redirect URLs：`http://localhost:5173/**`
-4. 部署网页后，把正式域名加入 Redirect URLs
-
-## Web 本地运行
-
-```bash
-cd web
-cp .env.example .env
-```
-
-编辑 `.env`：
-
-```env
-VITE_SUPABASE_URL=https://erukqyqwzbutwlaerzfn.supabase.co
-VITE_SUPABASE_ANON_KEY=你的_publishable_key
-```
-
-然后：
-
-```bash
-npm install
-npm run dev
-```
-
-浏览器打开 `http://localhost:5173`。
-
-## Web 功能范围（MVP）
+## 四、Web 功能（MVP）
 
 - 邮箱注册 / 登录
 - 训练记录列表（只读）
 - 训练详情：心率曲线、区间统计、力量组、估算卡路里
 
-## 插入测试数据
+## 五、插入测试数据
 
-可先在 Dashboard → Authentication → Users 创建测试用户，再执行 SQL（把 UUID 换成该用户 ID）：
+先在 Dashboard 创建用户，再在 SQL Editor 执行（替换 UUID）：
 
 ```sql
 insert into public.workout_records (
@@ -82,8 +110,6 @@ insert into public.workout_records (
 ) returning id;
 ```
 
-拿到 `id` 后插入心率样本：
-
 ```sql
 insert into public.heart_rate_samples (
   workout_id, user_id, timestamp_millis, bpm
@@ -96,24 +122,23 @@ select
 from generate_series(0, 30) as gs;
 ```
 
-## 密钥说明
+然后在网页登录同一账号，即可看到记录。
 
-| 密钥 | 用途 | 能否提交 Git |
-|------|------|--------------|
-| `sb_publishable_...` | Web / Android 客户端 | 可以（仍建议放 `.env`） |
-| `service_role` / Secret keys | 服务端管理 | 绝对不行 |
-| `SUPABASE_ACCESS_TOKEN` | CLI 推送迁移 | 绝对不行 |
+## 六、密钥说明
 
-## Android 后续接入建议
+| 密钥 | 用途 | 放哪里 |
+|------|------|--------|
+| `sb_publishable_...` | Web / Android 客户端 | GitHub Secrets（构建用） |
+| `service_role` | 服务端管理 | 绝不提交 |
+| `SUPABASE_ACCESS_TOKEN` | CLI 推迁移 | GitHub Secrets，用完可撤销 |
+
+## 七、Android 后续接入
 
 1. 增加 `INTERNET` 权限
-2. 引入 Supabase Android SDK 或 REST API
-3. 训练结束后上传：
-   - `workout_records`（`local_id` = App 内 session UUID）
-   - `heart_rate_samples`
-   - `strength_sets`
-4. 删除训练时设置 `deleted_at`，不要只删本地
+2. 用 Supabase REST API 或 Android SDK
+3. 训练结束后上传 `workout_records` + `heart_rate_samples` + `strength_sets`
+4. `local_id` 对应 App 内 session UUID，用于去重
 
-## 生产环境
+## 八、生产环境
 
-验证完成后建议新建 `HR40-Prod` 项目，不要把开发库直接用于正式用户。
+验证完成后建议新建 `HR40-Prod`，不要把 Dev 库直接给正式用户。
