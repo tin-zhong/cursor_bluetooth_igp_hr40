@@ -32,7 +32,7 @@ public final class OnlineFeatures {
     }
 
     public static boolean workoutDetailShowsDateFilter() {
-        return false;
+        return true;
     }
 
     public static String headerUserName(Context context) {

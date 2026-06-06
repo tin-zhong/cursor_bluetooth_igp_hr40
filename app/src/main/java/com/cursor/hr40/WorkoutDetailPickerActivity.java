@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.datepicker.MaterialDatePicker;
+import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.Calendar;
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.List;
 public final class WorkoutDetailPickerActivity extends AppCompatActivity {
     private LinearLayout listContainer;
     private Calendar selectedDate;
-    private MaterialButton dateButton;
+    private TextInputEditText dateInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,11 +26,12 @@ public final class WorkoutDetailPickerActivity extends AppCompatActivity {
 
         if (OnlineFeatures.workoutDetailShowsDateFilter()) {
             selectedDate = Calendar.getInstance();
-            dateButton = PageScaffold.actionButton(
+            dateInput = PageScaffold.dateFilterField(
                     this,
-                    "日期：" + WorkoutSessionLabels.formatDateLabel(selectedDate),
+                    root,
+                    "选择日期",
+                    WorkoutSessionLabels.formatDateLabel(selectedDate),
                     this::showDatePicker);
-            root.addView(dateButton, PageScaffold.matchWrap());
         }
 
         listContainer = PageScaffold.contentArea(this, root);
@@ -49,8 +51,8 @@ public final class WorkoutDetailPickerActivity extends AppCompatActivity {
                 selectedDate = Calendar.getInstance();
             }
             selectedDate.setTimeInMillis(value);
-            if (dateButton != null) {
-                dateButton.setText("日期：" + WorkoutSessionLabels.formatDateLabel(selectedDate));
+            if (dateInput != null) {
+                dateInput.setText(WorkoutSessionLabels.formatDateLabel(selectedDate));
             }
             populateList();
         });
