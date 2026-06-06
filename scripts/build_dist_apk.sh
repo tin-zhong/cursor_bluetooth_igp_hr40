@@ -22,14 +22,14 @@ if [[ ! -d "${BUILD_TOOLS}" ]]; then
   BUILD_TOOLS="${ANDROID_SDK_ROOT}/build-tools/34.0.0"
 fi
 
-./gradlew assembleDebug
+./gradlew assembleOfflineDebug
 
 fingerprint() {
   "${BUILD_TOOLS}/apksigner" verify --print-certs "$1" 2>/dev/null \
     | awk -F': ' '/SHA-256 digest:/{print $2; exit}'
 }
 
-BUILT_APK="${ROOT_DIR}/app/build/outputs/apk/debug/app-debug.apk"
+BUILT_APK="${ROOT_DIR}/app/build/outputs/apk/offline/debug/app-offline-debug.apk"
 actual="$(fingerprint "${BUILT_APK}")"
 
 if [[ "${actual}" != "${HR40_DIST_PRIMARY_SHA256}" ]]; then
