@@ -1,0 +1,30 @@
+name: Build dist Online APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Android SDK
+        run: ./scripts/setup_android_env.sh
+
+      - name: Build signed Online dist APK
+        env:
+          HR40_DISTRIBUTION_KEYSTORE_BASE64: ${{ secrets.HR40_DISTRIBUTION_KEYSTORE_BASE64 }}
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          export PATH="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${PATH}"
+          ./scripts/build_dist_online_apk.sh
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hr40-online-fitness-dist
+          path: |
+            dist-online/hr40-online-fitness-v*.apk
+            dist-online/hr40-online-fitness-debug.apk

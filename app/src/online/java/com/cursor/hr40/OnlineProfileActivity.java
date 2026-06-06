@@ -12,8 +12,6 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
-import org.json.JSONException;
-
 public final class OnlineProfileActivity extends AppCompatActivity {
     private boolean femaleSelected = false;
 
@@ -132,8 +130,6 @@ public final class OnlineProfileActivity extends AppCompatActivity {
             }).start();
         } catch (NumberFormatException e) {
             Toast.makeText(this, "请检查输入格式", Toast.LENGTH_SHORT).show();
-        } catch (JSONException e) {
-            Toast.makeText(this, "保存资料失败", Toast.LENGTH_SHORT).show();
         }
     }
 
