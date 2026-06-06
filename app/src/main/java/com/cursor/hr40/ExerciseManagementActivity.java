@@ -51,7 +51,13 @@ public final class ExerciseManagementActivity extends AppCompatActivity {
         listContainer.setOrientation(LinearLayout.VERTICAL);
         root.addView(listContainer, PageScaffold.matchWrap());
 
-        reloadList();
+        OnlineFeatures.refreshExerciseList(this, this::reloadList);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        OnlineFeatures.refreshExerciseList(this, this::reloadList);
     }
 
     private void reloadList() {
@@ -69,9 +75,12 @@ public final class ExerciseManagementActivity extends AppCompatActivity {
             listContainer.addView(empty, PageScaffold.matchWrap());
             return;
         }
+        int horizontalPadding = Math.round(16 * getResources().getDisplayMetrics().density);
+        int verticalPadding = Math.round(8 * getResources().getDisplayMetrics().density);
         for (String name : new ArrayList<>(exerciseNames)) {
             MaterialCardView rowCard = new MaterialCardView(this);
             rowCard.setCardElevation(0f);
+            rowCard.setContentPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding);
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);

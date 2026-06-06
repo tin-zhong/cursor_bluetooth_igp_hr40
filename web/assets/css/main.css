@@ -1,2 +1,8 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+button,
+[role="button"] {
+  text-align: center;
+  justify-content: center;
+}

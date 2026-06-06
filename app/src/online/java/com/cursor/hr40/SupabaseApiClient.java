@@ -85,6 +85,22 @@ public final class SupabaseApiClient {
         SyncStateStore.clear(context);
     }
 
+    public List<CloudWorkout> fetchWorkouts() throws IOException, JSONException, ApiException {
+        String select = "local_id,start_millis,end_millis,workout_type,"
+                + "heart_rate_samples(timestamp_millis,bpm,contact_supported,contact_detected,"
+                + "energy_expended_kj,rr_interval_count),"
+                + "strength_sets(exercise_name,weight,weight_unit,reps,timestamp_millis)";
+        String path = "/rest/v1/workout_records?select="
+                + URLEncoder.encode(select, StandardCharsets.UTF_8)
+                + "&order=start_millis.desc";
+        JSONArray rows = new JSONArray(getRest(path));
+        List<CloudWorkout> workouts = new ArrayList<>();
+        for (int i = 0; i < rows.length(); i++) {
+            workouts.add(CloudWorkout.fromJson(rows.getJSONObject(i)));
+        }
+        return workouts;
+    }
+
     public List<CloudExercise> fetchExercises() throws IOException, JSONException, ApiException {
         String path = "/rest/v1/exercises?select=id,name&order=name.asc";
         JSONArray rows = new JSONArray(getRest(path));
@@ -362,6 +378,83 @@ public final class SupabaseApiClient {
         CloudExercise(String id, String name) {
             this.id = id;
             this.name = name;
+        }
+    }
+
+    public static final class CloudWorkout {
+        public final String localId;
+        public final long startMillis;
+        public final long endMillis;
+        public final String workoutType;
+        public final List<HeartRateSample> samples;
+        public final List<StrengthSet> strengthSets;
+
+        CloudWorkout(
+                String localId,
+                long startMillis,
+                long endMillis,
+                String workoutType,
+                List<HeartRateSample> samples,
+                List<StrengthSet> strengthSets) {
+            this.localId = localId;
+            this.startMillis = startMillis;
+            this.endMillis = endMillis;
+            this.workoutType = workoutType;
+            this.samples = samples;
+            this.strengthSets = strengthSets;
+        }
+
+        static CloudWorkout fromJson(JSONObject json) throws JSONException {
+            List<HeartRateSample> samples = new ArrayList<>();
+            JSONArray hrArray = json.optJSONArray("heart_rate_samples");
+            if (hrArray != null) {
+                for (int i = 0; i < hrArray.length(); i++) {
+                    JSONObject row = hrArray.getJSONObject(i);
+                    Integer energy = row.isNull("energy_expended_kj")
+                            ? null
+                            : row.optInt("energy_expended_kj");
+                    samples.add(new HeartRateSample(
+                            row.getLong("timestamp_millis"),
+                            row.getInt("bpm"),
+                            row.optBoolean("contact_supported"),
+                            row.optBoolean("contact_detected"),
+                            energy,
+                            row.optInt("rr_interval_count")));
+                }
+            }
+
+            List<StrengthSet> strengthSets = new ArrayList<>();
+            JSONArray setArray = json.optJSONArray("strength_sets");
+            if (setArray != null) {
+                for (int i = 0; i < setArray.length(); i++) {
+                    JSONObject row = setArray.getJSONObject(i);
+                    strengthSets.add(new StrengthSet(
+                            row.optString("exercise_name", ""),
+                            row.optDouble("weight"),
+                            row.optString("weight_unit", StrengthSet.UNIT_KG),
+                            row.optInt("reps"),
+                            row.optLong("timestamp_millis")));
+                }
+            }
+
+            return new CloudWorkout(
+                    json.getString("local_id"),
+                    json.getLong("start_millis"),
+                    json.getLong("end_millis"),
+                    json.optString("workout_type", WorkoutSession.TYPE_AEROBIC),
+                    samples,
+                    strengthSets);
+        }
+
+        WorkoutSession toSession() {
+            WorkoutSession session = new WorkoutSession(localId, startMillis, endMillis, workoutType);
+            for (HeartRateSample sample : samples) {
+                session.addSample(sample);
+            }
+            for (StrengthSet set : strengthSets) {
+                session.addStrengthSet(set);
+            }
+            return session;
         }
     }
 

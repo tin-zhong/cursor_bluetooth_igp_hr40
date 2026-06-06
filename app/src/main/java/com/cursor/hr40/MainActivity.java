@@ -89,6 +89,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private MaterialButton editProfileButton;
     private MaterialButton fileManageButton;
     private MaterialButton historyManageButton;
+    private MaterialButton logoutButton;
     private MaterialCardView strengthPanel;
     private Spinner exerciseSpinner;
     private ArrayAdapter<String> exerciseAdapter;
@@ -366,6 +367,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         historyManageButton = materialButton("历史数据管理", v -> showHistoryManageDialog());
         root.addView(historyManageButton, matchWrap());
 
+        logoutButton = materialButton("退出登录", v -> {});
+        OnlineFeatures.configureLogoutButton(this, logoutButton);
+        root.addView(logoutButton, matchWrap());
+
         strengthPanel = card();
         strengthPanel.setVisibility(View.GONE);
         LinearLayout strengthContent = verticalLayout();
@@ -584,8 +589,12 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     @Override
     protected void onResume() {
         super.onResume();
-        reloadExerciseNames();
-        refreshHeaderUserName();
+        OnlineFeatures.onMainResume(this, () -> {
+            reloadExerciseNames();
+            refreshHeaderUserName();
+            loadLatestWorkout();
+            updateWorkoutUi();
+        });
     }
 
     private void refreshHeaderUserName() {

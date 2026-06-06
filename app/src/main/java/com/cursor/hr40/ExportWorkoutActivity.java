@@ -14,10 +14,16 @@ import java.io.IOException;
 import java.util.List;
 
 public final class ExportWorkoutActivity extends AppCompatActivity {
+    private LinearLayout root;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        LinearLayout root = PageScaffold.open(this, "导出运动记录 PDF");
+        root = PageScaffold.open(this, "导出运动记录 PDF");
+        OnlineFeatures.refreshWorkoutList(this, this::populateList);
+    }
+
+    private void populateList() {
         UserProfile profile = ProfileStore.load(this);
         List<WorkoutSession> sessions = WorkoutSessionLabels.collectExportableSessions(this);
 
