@@ -23,7 +23,6 @@ public final class ExportWorkoutActivity extends AppCompatActivity {
 
         if (sessions.isEmpty()) {
             PageScaffold.bodyText(this, root, "暂无可导出的运动记录");
-            PageScaffold.addBackButton(this, root);
             return;
         }
 
@@ -35,7 +34,6 @@ public final class ExportWorkoutActivity extends AppCompatActivity {
                     () -> exportSession(profile, session));
             root.addView(itemButton, PageScaffold.matchWrap());
         }
-        PageScaffold.addBackButton(this, root);
     }
 
     private void exportSession(UserProfile profile, WorkoutSession session) {

@@ -51,7 +51,6 @@ public final class ExerciseManagementActivity extends AppCompatActivity {
         listContainer.setOrientation(LinearLayout.VERTICAL);
         root.addView(listContainer, PageScaffold.matchWrap());
 
-        PageScaffold.addBackButton(this, root);
         reloadList();
     }
 
