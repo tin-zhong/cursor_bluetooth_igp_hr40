@@ -36,27 +36,27 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+  <AuthShell>
     <UCard class="w-full max-w-md text-center">
       <div v-if="step === 'verifying'" class="space-y-4 py-8">
         <UIcon name="i-lucide-loader-circle" class="size-10 mx-auto animate-spin text-primary" />
         <h1 class="text-xl font-semibold">正在验证邮箱</h1>
-        <p class="text-gray-500">请稍候，我们正在确认你的邮箱地址……</p>
+        <p class="text-muted">请稍候，我们正在确认你的邮箱地址……</p>
       </div>
 
       <div v-else-if="step === 'success'" class="space-y-4 py-6">
         <UIcon name="i-lucide-circle-check" class="size-12 mx-auto text-green-600" />
         <h1 class="text-xl font-semibold">邮箱验证成功</h1>
-        <p class="text-gray-600">你的邮箱已确认，现在可以登录并完善运动资料。</p>
+        <p class="text-muted">你的邮箱已确认，现在可以登录并完善运动资料。</p>
         <UButton label="前往登录" block class="mt-4" to="/login" />
       </div>
 
       <div v-else class="space-y-4 py-6">
         <UIcon name="i-lucide-circle-x" class="size-12 mx-auto text-red-600" />
         <h1 class="text-xl font-semibold">验证失败</h1>
-        <p class="text-gray-600">{{ errorMessage }}</p>
+        <p class="text-muted">{{ errorMessage }}</p>
         <UButton label="返回登录" block variant="soft" to="/login" />
       </div>
     </UCard>
-  </div>
+  </AuthShell>
 </template>
