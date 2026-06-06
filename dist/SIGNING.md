@@ -10,6 +10,8 @@
 
 维护者发布新版本时，请始终执行 `./scripts/build_dist_apk.sh`，脚本会强制使用并校验上述密钥库，**不要**使用本机临时 debug 证书。
 
+当前阶段默认只更新 `hr40-offline-fitness-debug.apk`；正式版 `v{version}.apk` 需在验收通过后执行 `RELEASE_DIST_APK=1 ./scripts/build_dist_apk.sh`。
+
 ## 从旧版升级
 
 已安装下列旧包的用户，安装 v3.5.0+ 前需**卸载**旧版：

@@ -55,32 +55,32 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto p-4 sm:p-6 space-y-4">
+  <div class="max-w-6xl mx-auto p-4 sm:p-6 space-y-4">
     <UButton to="/" color="neutral" variant="ghost" icon="i-lucide-arrow-left" label="返回列表" />
 
-    <div v-if="loading" class="text-gray-500">加载详情中……</div>
+    <div v-if="loading" class="text-muted">加载详情中……</div>
     <UAlert v-else-if="errorMessage" color="error" :title="errorMessage" />
 
     <template v-else-if="workout">
       <UCard>
         <h1 class="text-xl font-semibold">{{ workoutTypeLabel(workout.workout_type) }}</h1>
-        <p class="text-sm text-gray-500 mt-1">
+        <p class="text-sm text-muted mt-1">
           {{ new Date(workout.start_millis).toLocaleString('zh-CN') }}
         </p>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-          <div class="rounded-lg bg-gray-50 p-3">
-            <div class="text-xs text-gray-500">时长</div>
-            <div class="font-semibold mt-1">
+          <div class="rounded-lg bg-elevated/50 border border-default p-3">
+            <div class="text-xs text-muted">时长</div>
+            <div class="font-semibold mt-1 text-default">
               {{ formatDuration(workout.start_millis, workout.end_millis) }}
             </div>
           </div>
-          <div class="rounded-lg bg-gray-50 p-3">
-            <div class="text-xs text-gray-500">平均心率</div>
-            <div class="font-semibold mt-1">{{ stats.avgBpm || '-' }} bpm</div>
+          <div class="rounded-lg bg-elevated/50 border border-default p-3">
+            <div class="text-xs text-muted">平均心率</div>
+            <div class="font-semibold mt-1 text-default">{{ stats.avgBpm || '-' }} bpm</div>
           </div>
-          <div class="rounded-lg bg-gray-50 p-3">
-            <div class="text-xs text-gray-500">估算消耗</div>
-            <div class="font-semibold mt-1">{{ stats.calories.toFixed(1) }} kcal</div>
+          <div class="rounded-lg bg-elevated/50 border border-default p-3">
+            <div class="text-xs text-muted">估算消耗</div>
+            <div class="font-semibold mt-1 text-default">{{ stats.calories.toFixed(1) }} kcal</div>
           </div>
         </div>
       </UCard>
@@ -92,7 +92,7 @@ onMounted(async () => {
 
       <UCard>
         <h2 class="font-medium mb-3">心率区间</h2>
-        <ul class="space-y-2 text-sm text-gray-700">
+        <ul class="space-y-2 text-sm text-default">
           <li v-for="(millis, index) in stats.zoneMillis" :key="index">
             {{ ZONE_LABELS[index] }}：{{ formatZoneDuration(millis) }}
           </li>
@@ -106,7 +106,7 @@ onMounted(async () => {
             {{ set.exercise_name }} - {{ set.weight }}{{ set.weight_unit }} x {{ set.reps }}
           </li>
         </ul>
-        <p v-else class="text-sm text-gray-500">无力量组记录</p>
+        <p v-else class="text-sm text-muted">无力量组记录</p>
       </UCard>
     </template>
   </div>

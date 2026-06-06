@@ -56,23 +56,13 @@ public final class OnlineProfileActivity extends AppCompatActivity {
         root.addView(ageLayout);
 
         LinearLayout sexRow = new LinearLayout(this);
-        MaterialButton maleButton = new MaterialButton(this);
-        maleButton.setText("男");
-        MaterialButton femaleButton = new MaterialButton(this);
-        femaleButton.setText("女");
-        maleButton.setOnClickListener(v -> {
-            femaleSelected = false;
-            maleButton.setEnabled(false);
-            femaleButton.setEnabled(true);
-        });
-        femaleButton.setOnClickListener(v -> {
-            femaleSelected = true;
-            maleButton.setEnabled(true);
-            femaleButton.setEnabled(false);
-        });
-        maleButton.setEnabled(false);
-        sexRow.addView(maleButton);
-        sexRow.addView(femaleButton);
+        sexRow.setOrientation(LinearLayout.HORIZONTAL);
+        MaterialButton maleButton = outlinedButton("男");
+        MaterialButton femaleButton = outlinedButton("女");
+        maleButton.setOnClickListener(v -> setSexSelected(maleButton, femaleButton, false));
+        femaleButton.setOnClickListener(v -> setSexSelected(maleButton, femaleButton, true));
+        sexRow.addView(maleButton, weighted());
+        sexRow.addView(femaleButton, weighted());
         root.addView(sexRow);
 
         UserProfile local = ProfileStore.load(this);
@@ -82,9 +72,8 @@ public final class OnlineProfileActivity extends AppCompatActivity {
             weightInput.setText(String.valueOf(local.weightKg));
             ageInput.setText(String.valueOf(local.age));
             femaleSelected = UserProfile.SEX_FEMALE.equals(local.sex);
-            maleButton.setEnabled(femaleSelected);
-            femaleButton.setEnabled(!femaleSelected);
         }
+        setSexSelected(maleButton, femaleButton, femaleSelected);
 
         MaterialButton saveButton = new MaterialButton(this);
         saveButton.setText("保存并继续");
@@ -136,6 +125,29 @@ public final class OnlineProfileActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         // Force profile completion for new online users.
+    }
+
+    private void setSexSelected(MaterialButton maleButton, MaterialButton femaleButton, boolean female) {
+        femaleSelected = female;
+        styleSexButton(maleButton, !female);
+        styleSexButton(femaleButton, female);
+    }
+
+    private MaterialButton outlinedButton(String text) {
+        MaterialButton button = new MaterialButton(
+                this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(text);
+        button.setAllCaps(false);
+        return button;
+    }
+
+    private void styleSexButton(MaterialButton button, boolean selected) {
+        button.setStrokeColorResource(selected ? R.color.md_primary : android.R.color.darker_gray);
+        button.setTextColor(getColor(selected ? R.color.md_primary : android.R.color.darker_gray));
+    }
+
+    private LinearLayout.LayoutParams weighted() {
+        return new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
     }
 
     private int dp(int value) {

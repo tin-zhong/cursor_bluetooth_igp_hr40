@@ -156,15 +156,13 @@ async function deleteAccount() {
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-4 sm:p-6">
+  <div class="max-w-6xl mx-auto p-4 sm:p-6">
+    <UButton to="/" color="neutral" variant="ghost" icon="i-lucide-arrow-left" label="返回列表" class="mb-4" />
+
     <AppHeader
       :title="headerTitle"
       :subtitle="user?.email || undefined"
-    >
-      <template #actions>
-        <UButton to="/" color="neutral" variant="ghost" label="返回" />
-      </template>
-    </AppHeader>
+    />
 
     <UAlert v-if="message" color="success" :title="message" class="mb-4" />
     <UAlert v-if="errorMessage" color="error" :title="errorMessage" class="mb-4" />
