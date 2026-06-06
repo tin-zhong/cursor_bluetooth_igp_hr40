@@ -1,29 +1,29 @@
 # HR40 Online APK
 
-Online 版本安装包输出目录，与 `dist/` 同级。
+Online 版本安装包目录，与 `dist/` 同级。
 
-## 为什么仓库里只有 README？
+## 直接使用
 
-APK **不会提交到 Git**（与 `dist/` 离线包相同）。本目录只保留说明文件；安装包需本地构建，或通过 GitHub Actions 下载。
+仓库中会提交当前版本的安装包，可直接下载安装：
 
-常见原因：
+- `hr40-online-fitness-v{versionName}.apk` — 正式分发包
+- `hr40-online-fitness-debug.apk` — 与正式包同签名，便于调试
 
-1. **尚未成功构建** — Online 版曾存在编译错误，构建脚本未跑完就不会生成 APK。
-2. **未运行构建脚本** — 需主动执行下方命令。
-3. **未触发 CI** — 在 GitHub Actions 中手动运行 **Build dist Online APK**，从 Artifacts 下载。
+签名说明见 [SIGNING.md](./SIGNING.md)。
 
-## 构建命令
+## 发布新版本
+
+版本号与 offline 保持一致（见 `app/build.gradle`）。发版时执行：
 
 ```bash
 bash scripts/build_dist_online_apk.sh
+git add dist-online/
+git commit -m "Release v{version} Online dist APK"
 ```
 
-成功后会生成：
+与 `dist/` 离线包流程相同：**构建完成后提交到 Git**，无需每次去 Actions 下载。
 
-- `hr40-online-fitness-v{versionName}.apk`
-- `hr40-online-fitness-debug.apk`
-
-版本号与 offline 版本保持一致（见 `app/build.gradle` 中的 `versionName` / `versionCode`）。
+GitHub Actions 的 **Build dist Online APK** 仅作备用（本地无法构建时使用），产物在 Artifacts 中。
 
 ## Online 版功能
 
