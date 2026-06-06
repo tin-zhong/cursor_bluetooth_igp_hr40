@@ -82,7 +82,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private MaterialButton scanButton;
     private MaterialButton startButton;
     private MaterialButton endButton;
-    private MaterialButton exportButton;
     private MaterialButton detailViewButton;
     private MaterialButton countdownButton;
     private MaterialButton exerciseManageButton;
@@ -347,10 +346,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         countdownButton = materialButton("训练倒计时", v -> showCountdownSetupDialog());
         countdownButton.setVisibility(View.GONE);
         root.addView(countdownButton, matchWrap());
-
-        exportButton = materialButton("导出运动记录 PDF", v ->
-                startActivity(new Intent(this, ExportWorkoutActivity.class)));
-        root.addView(exportButton, matchWrap());
 
         detailViewButton = materialButton("查看运动明细", v ->
                 startActivity(new Intent(this, WorkoutDetailPickerActivity.class)));
@@ -622,36 +617,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
             return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {
             return "unknown";
-        }
-    }
-
-    private void showExportSessionDialog() {
-        List<WorkoutSession> exportableSessions = WorkoutSessionLabels.collectExportableSessions(this);
-        List<String> labels = new ArrayList<>();
-        for (WorkoutSession session : exportableSessions) {
-            labels.add(formatSessionLabel(session));
-        }
-        if (exportableSessions.isEmpty()) {
-            showToast("暂无可导出的运动记录");
-            return;
-        }
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("选择要导出的运动记录")
-                .setItems(labels.toArray(new String[0]), (dialog, which) -> exportSession(exportableSessions.get(which)))
-                .show();
-    }
-
-    private void exportSession(WorkoutSession session) {
-        try {
-            Uri uri = PdfReportExporter.export(this, profile, session);
-            showToast("PDF 已导出");
-            Intent share = new Intent(Intent.ACTION_SEND);
-            share.setType("application/pdf");
-            share.putExtra(Intent.EXTRA_STREAM, uri);
-            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(share, "分享 HR40 运动报告"));
-        } catch (IOException e) {
-            showToast("导出 PDF 失败: " + e.getMessage());
         }
     }
 
@@ -1306,10 +1271,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         boolean endEnabled = activeSession != null;
         endButton.setEnabled(endEnabled);
         updateEndButtonStyle(endEnabled);
-        exportButton.setEnabled(true);
-
         boolean inWorkout = activeSession != null;
-        exportButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         detailViewButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         exerciseManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);

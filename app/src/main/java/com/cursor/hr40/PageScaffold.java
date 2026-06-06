@@ -12,6 +12,8 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 public final class PageScaffold {
     private static final float TITLE_SP = 22f;
@@ -85,6 +87,32 @@ public final class PageScaffold {
         styleBody(activity, view);
         root.addView(view, matchWrap());
         return view;
+    }
+
+    public static TextInputEditText dateFilterField(
+            AppCompatActivity activity,
+            LinearLayout root,
+            String hint,
+            String value,
+            Runnable onClick) {
+        TextInputLayout layout = new TextInputLayout(
+                activity, null, com.google.android.material.R.attr.textInputOutlinedStyle);
+        layout.setHint(hint);
+        TextInputEditText input = new TextInputEditText(activity);
+        input.setText(value);
+        input.setFocusable(false);
+        input.setClickable(true);
+        input.setCursorVisible(false);
+        input.setKeyListener(null);
+        input.setOnClickListener(v -> onClick.run());
+        layout.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);
+        layout.setEndIconDrawable(activity.getDrawable(android.R.drawable.ic_menu_my_calendar));
+        layout.setEndIconOnClickListener(v -> onClick.run());
+        layout.addView(input);
+        LinearLayout.LayoutParams params = matchWrap();
+        params.bottomMargin = dp(activity, 12);
+        root.addView(layout, params);
+        return input;
     }
 
     public static MaterialButton actionButton(AppCompatActivity activity, String text, Runnable action) {

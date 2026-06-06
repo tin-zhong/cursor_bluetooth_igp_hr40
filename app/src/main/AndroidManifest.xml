@@ -23,9 +23,6 @@
             android:name=".ExerciseManagementActivity"
             android:exported="false" />
         <activity
-            android:name=".ExportWorkoutActivity"
-            android:exported="false" />
-        <activity
             android:name=".WorkoutDetailPickerActivity"
             android:exported="false" />
         <activity
