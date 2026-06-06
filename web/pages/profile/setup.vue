@@ -2,29 +2,40 @@
 definePageMeta({ layout: false });
 
 const name = ref('');
-const heightCm = ref(170);
-const weightKg = ref(70);
-const age = ref(30);
+const heightCm = ref('');
+const weightKg = ref('');
+const age = ref('');
 const sex = ref<'male' | 'female'>('male');
 const loading = ref(false);
 const errorMessage = ref('');
 
 const { saveProfile } = useProfile();
 
+function parseNumber(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return Number.NaN;
+  return Number(trimmed);
+}
+
 async function onSubmit() {
   if (!name.value.trim()) {
     errorMessage.value = '请填写姓名或昵称';
     return;
   }
-  if (heightCm.value < 80 || heightCm.value > 240) {
+
+  const height = parseNumber(heightCm.value);
+  const weight = parseNumber(weightKg.value);
+  const ageValue = parseNumber(age.value);
+
+  if (Number.isNaN(height) || height < 80 || height > 240) {
     errorMessage.value = '请填写合理的身高';
     return;
   }
-  if (weightKg.value < 20 || weightKg.value > 250) {
+  if (Number.isNaN(weight) || weight < 20 || weight > 250) {
     errorMessage.value = '请填写合理的体重';
     return;
   }
-  if (age.value < 10 || age.value > 100) {
+  if (Number.isNaN(ageValue) || ageValue < 10 || ageValue > 100) {
     errorMessage.value = '请填写合理的年龄';
     return;
   }
@@ -35,9 +46,9 @@ async function onSubmit() {
     await saveProfile({
       name: name.value.trim(),
       sex: sex.value,
-      age: age.value,
-      height_cm: heightCm.value,
-      weight_kg: weightKg.value,
+      age: ageValue,
+      height_cm: height,
+      weight_kg: weight,
     });
     await navigateTo('/');
   } catch (error) {
@@ -49,12 +60,12 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+  <AuthShell>
     <UCard class="w-full max-w-lg">
       <template #header>
         <div>
           <h1 class="text-xl font-semibold">完善运动资料</h1>
-          <p class="text-sm text-gray-500 mt-1">
+          <p class="text-sm text-muted mt-1">
             新用户需填写资料，用于估算最大心率、心率区间和能量消耗。
           </p>
         </div>
@@ -62,18 +73,36 @@ async function onSubmit() {
 
       <form class="space-y-4" @submit.prevent="onSubmit">
         <UFormField label="姓名或昵称" required>
-          <UInput v-model="name" class="w-full" />
+          <UInput v-model="name" class="w-full" placeholder="请输入姓名或昵称" />
         </UFormField>
         <div class="grid grid-cols-2 gap-4">
           <UFormField label="身高 (cm)" required>
-            <UInput v-model.number="heightCm" type="number" class="w-full" />
+            <UInput
+              v-model="heightCm"
+              type="text"
+              inputmode="numeric"
+              class="w-full"
+              placeholder="请输入身高"
+            />
           </UFormField>
           <UFormField label="体重 (kg)" required>
-            <UInput v-model.number="weightKg" type="number" step="0.1" class="w-full" />
+            <UInput
+              v-model="weightKg"
+              type="text"
+              inputmode="decimal"
+              class="w-full"
+              placeholder="请输入体重"
+            />
           </UFormField>
         </div>
         <UFormField label="年龄" required>
-          <UInput v-model.number="age" type="number" class="w-full" />
+          <UInput
+            v-model="age"
+            type="text"
+            inputmode="numeric"
+            class="w-full"
+            placeholder="请输入年龄"
+          />
         </UFormField>
         <UFormField label="性别" required>
           <URadioGroup
@@ -84,9 +113,9 @@ async function onSubmit() {
             ]"
           />
         </UFormField>
-        <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+        <p v-if="errorMessage" class="text-sm text-error">{{ errorMessage }}</p>
         <UButton type="submit" block :loading="loading" label="保存并继续" />
       </form>
     </UCard>
-  </div>
+  </AuthShell>
 </template>

@@ -36,12 +36,12 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+  <AuthShell>
     <UCard class="w-full max-w-md">
       <template #header>
         <div>
           <h1 class="text-xl font-semibold">注册</h1>
-          <p class="text-sm text-gray-500 mt-1">创建账号以同步和查看运动记录</p>
+          <p class="text-sm text-muted mt-1">创建账号以同步和查看运动记录</p>
         </div>
       </template>
 
@@ -59,12 +59,12 @@ async function onSubmit() {
             class="w-full"
           />
         </UFormField>
-        <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+        <p v-if="errorMessage" class="text-sm text-error">{{ errorMessage }}</p>
         <UButton type="submit" block :loading="loading" label="注册" />
       </form>
 
       <template #footer>
-        <p class="text-sm text-center text-gray-500">
+        <p class="text-sm text-center text-muted">
           已有账号？
           <NuxtLink to="/login" class="text-primary font-medium">去登录</NuxtLink>
         </p>
@@ -79,7 +79,7 @@ async function onSubmit() {
         </div>
       </template>
       <template #body>
-        <p class="text-gray-700 leading-relaxed">
+        <p class="text-muted leading-relaxed">
           账号已创建。若开启了邮箱验证，请前往邮箱点击确认链接；验证完成后即可登录并填写运动资料。
         </p>
       </template>
@@ -87,5 +87,5 @@ async function onSubmit() {
         <UButton label="我知道了" block @click="navigateTo('/login')" />
       </template>
     </UModal>
-  </div>
+  </AuthShell>
 </template>

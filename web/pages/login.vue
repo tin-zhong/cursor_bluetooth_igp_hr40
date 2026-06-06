@@ -25,12 +25,12 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+  <AuthShell>
     <UCard class="w-full max-w-md">
       <template #header>
         <div>
           <h1 class="text-xl font-semibold">登录</h1>
-          <p class="text-sm text-gray-500 mt-1">登录后跨设备查看训练历史</p>
+          <p class="text-sm text-muted mt-1">登录后跨设备查看训练历史</p>
         </div>
       </template>
 
@@ -48,16 +48,16 @@ async function onSubmit() {
             class="w-full"
           />
         </UFormField>
-        <p v-if="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+        <p v-if="errorMessage" class="text-sm text-error">{{ errorMessage }}</p>
         <UButton type="submit" block :loading="loading" label="登录" />
       </form>
 
       <template #footer>
-        <p class="text-sm text-center text-gray-500">
+        <p class="text-sm text-center text-muted">
           还没有账号？
           <NuxtLink to="/register" class="text-primary font-medium">去注册</NuxtLink>
         </p>
       </template>
     </UCard>
-  </div>
+  </AuthShell>
 </template>
