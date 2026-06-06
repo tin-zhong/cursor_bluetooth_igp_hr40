@@ -2,7 +2,7 @@ package com.cursor.hr40;
 
 import android.content.Context;
 import android.content.Intent;
-import android.widget.LinearLayout;
+import com.google.android.material.button.MaterialButton;
 
 public final class OnlineFeatures {
     private OnlineFeatures() {
@@ -12,15 +12,15 @@ public final class OnlineFeatures {
         return "HR40 在线运动监测 v" + versionName;
     }
 
-    public static void attachAccountButton(MainActivity activity, LinearLayout root) {
-        com.google.android.material.button.MaterialButton accountButton =
-                new com.google.android.material.button.MaterialButton(activity);
-        accountButton.setText("账户管理");
-        accountButton.setOnClickListener(v ->
-                activity.startActivity(new Intent(activity, AccountActivity.class)));
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        root.addView(accountButton, params);
+    public static String profileButtonLabel() {
+        return "用户管理";
+    }
+
+    public static void configureProfileButton(MainActivity activity, MaterialButton button) {
+        button.setText(profileButtonLabel());
+        button.setAllCaps(false);
+        button.setOnClickListener(v ->
+                activity.startActivity(new Intent(activity, UserManagementActivity.class)));
     }
 
     public static void onMainReady(MainActivity activity, Runnable onReady) {

@@ -344,9 +344,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
         exerciseManageButton = materialButton("动作管理", v -> showExerciseManagementDialog());
         root.addView(exerciseManageButton, matchWrap());
-        editProfileButton = materialButton("编辑运动人员资料", v -> showProfileDialog(true));
+        editProfileButton = materialButton(OnlineFeatures.profileButtonLabel(), v -> {});
+        OnlineFeatures.configureProfileButton(this, editProfileButton);
         root.addView(editProfileButton, matchWrap());
-        OnlineFeatures.attachAccountButton(this, root);
 
         fileManageButton = materialButton("导出文件管理", v -> showExportedFilesDialog());
         root.addView(fileManageButton, matchWrap());
@@ -761,6 +761,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         int minutes = totalSeconds / 60;
         int seconds = totalSeconds % 60;
         return String.format(Locale.US, "%02d:%02d", minutes, seconds);
+    }
+
+    public void openProfileEditor() {
+        showProfileDialog(true);
     }
 
     private void showProfileDialog(boolean cancellable) {
