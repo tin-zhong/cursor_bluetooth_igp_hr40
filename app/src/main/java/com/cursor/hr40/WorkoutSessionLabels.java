@@ -4,12 +4,37 @@ import android.content.Context;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
 public final class WorkoutSessionLabels {
     private WorkoutSessionLabels() {
+    }
+
+    public static List<WorkoutSession> filterSessionsOnDate(List<WorkoutSession> sessions, Calendar day) {
+        if (day == null) {
+            return sessions;
+        }
+        int year = day.get(Calendar.YEAR);
+        int month = day.get(Calendar.MONTH);
+        int dayOfMonth = day.get(Calendar.DAY_OF_MONTH);
+        List<WorkoutSession> filtered = new ArrayList<>();
+        for (WorkoutSession session : sessions) {
+            Calendar sessionDay = Calendar.getInstance();
+            sessionDay.setTimeInMillis(session.startMillis);
+            if (sessionDay.get(Calendar.YEAR) == year
+                    && sessionDay.get(Calendar.MONTH) == month
+                    && sessionDay.get(Calendar.DAY_OF_MONTH) == dayOfMonth) {
+                filtered.add(session);
+            }
+        }
+        return filtered;
+    }
+
+    public static String formatDateLabel(Calendar day) {
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(day.getTime());
     }
 
     public static List<WorkoutSession> collectExportableSessions(Context context) {

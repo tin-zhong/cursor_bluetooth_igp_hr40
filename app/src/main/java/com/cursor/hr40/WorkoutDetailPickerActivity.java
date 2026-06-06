@@ -2,33 +2,76 @@ package com.cursor.hr40;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.widget.LinearLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.datepicker.MaterialDatePicker;
 
+import java.util.Calendar;
 import java.util.List;
 
 public final class WorkoutDetailPickerActivity extends AppCompatActivity {
-    private LinearLayout root;
+    private LinearLayout listContainer;
+    private Calendar selectedDate;
+    private MaterialButton dateButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        root = PageScaffold.open(this, "查看运动明细");
+        LinearLayout root = PageScaffold.open(this, "查看运动明细");
+
+        if (OnlineFeatures.workoutDetailShowsDateFilter()) {
+            selectedDate = Calendar.getInstance();
+            dateButton = PageScaffold.actionButton(
+                    this,
+                    "日期：" + WorkoutSessionLabels.formatDateLabel(selectedDate),
+                    this::showDatePicker);
+            root.addView(dateButton, PageScaffold.matchWrap());
+        }
+
+        listContainer = PageScaffold.contentArea(this, root);
         OnlineFeatures.refreshWorkoutList(this, this::populateList);
+    }
+
+    private void showDatePicker() {
+        long selection = selectedDate == null
+                ? MaterialDatePicker.todayInUtcMilliseconds()
+                : selectedDate.getTimeInMillis();
+        MaterialDatePicker<Long> picker = MaterialDatePicker.Builder.datePicker()
+                .setTitleText("选择日期")
+                .setSelection(selection)
+                .build();
+        picker.addOnPositiveButtonClickListener(value -> {
+            if (selectedDate == null) {
+                selectedDate = Calendar.getInstance();
+            }
+            selectedDate.setTimeInMillis(value);
+            if (dateButton != null) {
+                dateButton.setText("日期：" + WorkoutSessionLabels.formatDateLabel(selectedDate));
+            }
+            populateList();
+        });
+        picker.show(getSupportFragmentManager(), "workout_date_picker");
     }
 
     private void populateList() {
         List<WorkoutSession> sessions = WorkoutSessionLabels.collectExportableSessions(this);
+        if (OnlineFeatures.workoutDetailShowsDateFilter() && selectedDate != null) {
+            sessions = WorkoutSessionLabels.filterSessionsOnDate(sessions, selectedDate);
+        }
+
+        listContainer.removeAllViews();
+        listContainer.setGravity(Gravity.TOP);
+        listContainer.setMinimumHeight(0);
 
         if (sessions.isEmpty()) {
-            PageScaffold.bodyText(this, root, "暂无可查看的运动记录");
+            PageScaffold.showCenteredEmpty(this, listContainer, "暂无数据");
             return;
         }
 
-        PageScaffold.sectionTitle(this, root, "选择记录");
         for (WorkoutSession session : sessions) {
             MaterialButton itemButton = PageScaffold.actionButton(
                     this,
@@ -38,7 +81,7 @@ public final class WorkoutDetailPickerActivity extends AppCompatActivity {
                         intent.putExtra(WorkoutDetailActivity.EXTRA_SESSION_ID, session.id);
                         startActivity(intent);
                     });
-            root.addView(itemButton, PageScaffold.matchWrap());
+            listContainer.addView(itemButton, PageScaffold.matchWrap());
         }
     }
 }

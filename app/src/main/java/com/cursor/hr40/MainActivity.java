@@ -124,7 +124,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private final Runnable maintenanceTick = new Runnable() {
         @Override
         public void run() {
-            runAutoHistoryCleanupIfNeeded();
+            if (OnlineFeatures.runMaintenanceCleanup()) {
+                runAutoHistoryCleanupIfNeeded();
+            }
             handler.postDelayed(this, MAINTENANCE_INTERVAL_MS);
         }
     };
@@ -361,11 +363,15 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         OnlineFeatures.configureProfileButton(this, editProfileButton);
         root.addView(editProfileButton, matchWrap());
 
-        fileManageButton = materialButton("导出文件管理", v -> showExportedFilesDialog());
-        root.addView(fileManageButton, matchWrap());
+        if (OnlineFeatures.showFileManagement()) {
+            fileManageButton = materialButton("导出文件管理", v -> showExportedFilesDialog());
+            root.addView(fileManageButton, matchWrap());
+        }
 
-        historyManageButton = materialButton("历史数据管理", v -> showHistoryManageDialog());
-        root.addView(historyManageButton, matchWrap());
+        if (OnlineFeatures.showHistoryManagement()) {
+            historyManageButton = materialButton("历史数据管理", v -> showHistoryManageDialog());
+            root.addView(historyManageButton, matchWrap());
+        }
 
         logoutButton = materialButton("退出登录", v -> {});
         OnlineFeatures.configureLogoutButton(this, logoutButton);
@@ -1307,8 +1313,15 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         detailViewButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         exerciseManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
-        fileManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
-        historyManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        if (fileManageButton != null) {
+            fileManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        }
+        if (historyManageButton != null) {
+            historyManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        }
+        if (logoutButton != null) {
+            logoutButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        }
         countdownButton.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         if (!inWorkout) {
             startButton.setText("开始运动");

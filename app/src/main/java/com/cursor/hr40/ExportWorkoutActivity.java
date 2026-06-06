@@ -3,6 +3,7 @@ package com.cursor.hr40;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -15,11 +16,13 @@ import java.util.List;
 
 public final class ExportWorkoutActivity extends AppCompatActivity {
     private LinearLayout root;
+    private LinearLayout listContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         root = PageScaffold.open(this, "导出运动记录 PDF");
+        listContainer = PageScaffold.contentArea(this, root);
         OnlineFeatures.refreshWorkoutList(this, this::populateList);
     }
 
@@ -27,18 +30,21 @@ public final class ExportWorkoutActivity extends AppCompatActivity {
         UserProfile profile = ProfileStore.load(this);
         List<WorkoutSession> sessions = WorkoutSessionLabels.collectExportableSessions(this);
 
+        listContainer.removeAllViews();
+        listContainer.setGravity(Gravity.TOP);
+        listContainer.setMinimumHeight(0);
+
         if (sessions.isEmpty()) {
-            PageScaffold.bodyText(this, root, "暂无可导出的运动记录");
+            PageScaffold.showCenteredEmpty(this, listContainer, "暂无数据");
             return;
         }
 
-        PageScaffold.sectionTitle(this, root, "选择记录");
         for (WorkoutSession session : sessions) {
             MaterialButton itemButton = PageScaffold.actionButton(
                     this,
                     WorkoutSessionLabels.formatSessionLabel(session),
                     () -> exportSession(profile, session));
-            root.addView(itemButton, PageScaffold.matchWrap());
+            listContainer.addView(itemButton, PageScaffold.matchWrap());
         }
     }
 
