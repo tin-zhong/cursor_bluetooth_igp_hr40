@@ -32,16 +32,18 @@ jobs:
       - name: Install and build
         working-directory: web
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_BASE_PATH: /cursor_bluetooth_igp_hr40/
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          NUXT_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          NUXT_APP_BASE_URL: /cursor_bluetooth_igp_hr40/
         run: |
           npm ci
           npm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web/dist
+          path: web/.output/public
 
   deploy:
     needs: build

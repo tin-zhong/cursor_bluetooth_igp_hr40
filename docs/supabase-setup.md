@@ -93,11 +93,31 @@ npx supabase db push
 
 `SUPABASE_ACCESS_TOKEN` 放在 GitHub Secrets 里，不要写进代码。
 
-## 四、Web 功能（MVP）
+## 四、Web 功能（Nuxt 3 + Nuxt UI）
 
-- 邮箱注册 / 登录
-- 训练记录列表（只读）
-- 训练详情：心率曲线、区间统计、力量组、估算卡路里
+- 邮箱注册 / 登录（注册成功弹窗提示）
+- 邮箱验证页：验证中 → 验证成功 → 前往登录
+- 新用户强制填写运动资料
+- 主页标题：`{用户名称} · 运动记录`（不显示 HR40）
+- 训练列表与详情（心率曲线、区间、力量组、卡路里）
+- 账户管理：改密码（双重确认）、注销账户（双重确认，删除全部数据）
+
+本地开发：
+
+```bash
+cd web
+cp .env.example .env
+npm install
+npm run dev
+```
+
+## 五、Android Online 版本
+
+- 构建：`bash scripts/build_dist_online_apk.sh`
+- 输出目录：`dist-online/`（与 `dist/` 同级）
+- 版本号与 offline 保持一致（当前 `3.5.1` / `versionCode 26`）
+- 包名：`com.cursor.hr40.online`（可与离线版共存）
+- 功能：注册 / 登录、强制资料填写、账户管理
 
 ## 五、插入测试数据
 

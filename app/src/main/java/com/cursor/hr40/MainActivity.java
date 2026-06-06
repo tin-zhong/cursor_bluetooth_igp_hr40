@@ -249,7 +249,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
         TextView title = new TextView(this);
-        title.setText("HR40 离线运动监测 v" + appVersionName());
+        title.setText(OnlineFeatures.appTitle(appVersionName()));
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
@@ -344,6 +344,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         root.addView(exerciseManageButton, matchWrap());
         editProfileButton = materialButton("编辑运动人员资料", v -> showProfileDialog(true));
         root.addView(editProfileButton, matchWrap());
+        OnlineFeatures.attachAccountButton(this, root);
 
         fileManageButton = materialButton("导出文件管理", v -> showExportedFilesDialog());
         root.addView(fileManageButton, matchWrap());

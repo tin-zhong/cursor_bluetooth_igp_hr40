@@ -9,6 +9,8 @@ local.properties
 # Web
 web/node_modules/
 web/dist/
+web/.output/
+web/.nuxt/
 web/.env
 web/.env.local
 
