@@ -86,9 +86,6 @@ public final class UserManagementActivity extends AppCompatActivity {
         MaterialButton deleteAccount = materialButton("注销账户", v -> confirmDeleteStep1());
         root.addView(deleteAccount, matchWrap());
 
-        MaterialButton backButton = materialButton("返回", v -> finish());
-        root.addView(backButton, matchWrap());
-
         loadProfileFields();
         scrollView.addView(root);
         setContentView(scrollView);

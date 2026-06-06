@@ -40,16 +40,6 @@ public final class PageScaffold {
         return root;
     }
 
-    public static void addBackButton(AppCompatActivity activity, LinearLayout root) {
-        MaterialButton backButton = new MaterialButton(activity);
-        backButton.setText("返回");
-        styleButton(backButton);
-        backButton.setOnClickListener(v -> activity.finish());
-        LinearLayout.LayoutParams params = matchWrap();
-        params.topMargin = dp(activity, 24);
-        root.addView(backButton, params);
-    }
-
     public static TextView sectionTitle(AppCompatActivity activity, LinearLayout root, String text) {
         TextView view = new TextView(activity);
         view.setText(text);

@@ -19,7 +19,6 @@ public final class WorkoutDetailPickerActivity extends AppCompatActivity {
 
         if (sessions.isEmpty()) {
             PageScaffold.bodyText(this, root, "暂无可查看的运动记录");
-            PageScaffold.addBackButton(this, root);
             return;
         }
 
@@ -35,6 +34,5 @@ public final class WorkoutDetailPickerActivity extends AppCompatActivity {
                     });
             root.addView(itemButton, PageScaffold.matchWrap());
         }
-        PageScaffold.addBackButton(this, root);
     }
 }

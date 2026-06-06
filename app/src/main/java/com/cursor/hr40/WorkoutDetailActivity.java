@@ -18,11 +18,9 @@ public final class WorkoutDetailActivity extends AppCompatActivity {
 
         if (session == null) {
             PageScaffold.bodyText(this, root, "未找到运动记录");
-            PageScaffold.addBackButton(this, root);
             return;
         }
 
         root.addView(WorkoutDetailViews.build(this, profile, session), PageScaffold.matchWrap());
-        PageScaffold.addBackButton(this, root);
     }
 }
