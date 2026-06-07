@@ -40,7 +40,7 @@ function draw() {
     return;
   }
 
-  const padding = { top: 16, right: 16, bottom: 28, left: 40 };
+  const padding = { top: 16, right: 16, bottom: 32, left: 48 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
   const minTime = props.samples[0].timestamp_millis;
@@ -54,20 +54,45 @@ function draw() {
     maxBpm = Math.max(maxBpm, sample.bpm);
   }
 
-  const yMin = Math.max(40, minBpm - 8);
-  const yMax = Math.min(220, maxBpm + 8);
+  const bpmStep = niceStep((maxBpm - minBpm + 16) / 5, [5, 10, 20, 25, 50, 100]);
+  const yMin = Math.max(0, Math.floor((minBpm - 4) / bpmStep) * bpmStep);
+  const yMax = Math.min(240, Math.ceil((maxBpm + 4) / bpmStep) * bpmStep);
   const bpmSpan = Math.max(1, yMax - yMin);
+
+  const timeStepSec = niceStep(timeSpan / 1000 / 6, [
+    5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600,
+  ]);
+  const timeStepMs = timeStepSec * 1000;
 
   const xForTime = (time: number) => padding.left + ((time - minTime) / timeSpan) * plotWidth;
   const yForBpm = (bpm: number) => padding.top + plotHeight - ((bpm - yMin) / bpmSpan) * plotHeight;
 
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#888';
   ctx.strokeStyle = '#e0e0e0';
-  for (let i = 0; i <= 4; i++) {
-    const y = padding.top + (plotHeight / 4) * i;
+  ctx.lineWidth = 1;
+
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let bpm = yMin; bpm <= yMax + 1e-6; bpm += bpmStep) {
+    const y = yForBpm(bpm);
     ctx.beginPath();
     ctx.moveTo(padding.left, y);
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
+    ctx.fillText(String(Math.round(bpm)), padding.left - 6, y);
+  }
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const firstTick = Math.ceil(0 / timeStepMs) * timeStepMs;
+  for (let t = firstTick; t <= timeSpan + 1e-6; t += timeStepMs) {
+    const x = xForTime(minTime + t);
+    ctx.beginPath();
+    ctx.moveTo(x, padding.top);
+    ctx.lineTo(x, padding.top + plotHeight);
+    ctx.stroke();
+    ctx.fillText(formatElapsed(t), x, padding.top + plotHeight + 6);
   }
 
   for (let i = 0; i < props.samples.length - 1; i++) {
@@ -80,6 +105,24 @@ function draw() {
     ctx.lineTo(xForTime(next.timestamp_millis), yForBpm(next.bpm));
     ctx.stroke();
   }
+}
+
+function niceStep(target: number, steps: number[]) {
+  for (const step of steps) {
+    if (step >= target) return step;
+  }
+  return steps[steps.length - 1];
+}
+
+function formatElapsed(ms: number) {
+  const totalSeconds = Math.round(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 onMounted(() => {
