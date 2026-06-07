@@ -20,16 +20,30 @@ const maxHr = computed(() =>
   profile.value ? Math.max(120, 220 - profile.value.age) : 190,
 );
 
+async function fetchAllSamples(workoutId: string) {
+  const pageSize = 1000;
+  const all: any[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('heart_rate_samples')
+      .select('*')
+      .eq('workout_id', workoutId)
+      .order('timestamp_millis', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = data ?? [];
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return all;
+}
+
 onMounted(async () => {
   const workoutId = route.params.id as string;
   try {
-    const [workoutResult, samplesResult, setsResult, profileData] = await Promise.all([
+    const [workoutResult, samplesData, setsResult, profileData] = await Promise.all([
       supabase.from('workout_records').select('*').eq('id', workoutId).single(),
-      supabase
-        .from('heart_rate_samples')
-        .select('*')
-        .eq('workout_id', workoutId)
-        .order('timestamp_millis', { ascending: true }),
+      fetchAllSamples(workoutId),
       supabase
         .from('strength_sets')
         .select('*')
@@ -39,11 +53,10 @@ onMounted(async () => {
     ]);
 
     if (workoutResult.error) throw workoutResult.error;
-    if (samplesResult.error) throw samplesResult.error;
     if (setsResult.error) throw setsResult.error;
 
     workout.value = workoutResult.data;
-    samples.value = samplesResult.data ?? [];
+    samples.value = samplesData;
     sets.value = setsResult.data ?? [];
     profile.value = profileData;
   } catch (error) {
