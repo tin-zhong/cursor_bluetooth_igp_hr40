@@ -49,9 +49,15 @@ public final class OnlineSyncManager {
         }
     }
 
+    public static void pullTrainingPlanToLocal(Context context) throws IOException, JSONException, SupabaseApiClient.ApiException {
+        List<TrainingPlanItem> items = new SupabaseApiClient(context).fetchTrainingPlan();
+        TrainingPlanStore.save(context, items);
+    }
+
     public static void refreshFromCloud(Context context) throws IOException, JSONException, SupabaseApiClient.ApiException {
         pullProfileToLocal(context);
         pullExercisesToLocal(context);
+        pullTrainingPlanToLocal(context);
         pullWorkoutsToLocal(context);
     }
 

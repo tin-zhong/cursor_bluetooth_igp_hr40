@@ -90,6 +90,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private MaterialButton historyManageButton;
     private MaterialButton logoutButton;
     private MaterialCardView strengthPanel;
+    private LinearLayout planSection;
     private Spinner exerciseSpinner;
     private ArrayAdapter<String> exerciseAdapter;
     private final List<String> exerciseNames = new ArrayList<>();
@@ -381,6 +382,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         strengthTitle.setTextColor(getColor(R.color.md_primary));
         strengthTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f);
         strengthContent.addView(strengthTitle, matchWrap());
+
+        planSection = verticalLayout();
+        strengthContent.addView(planSection, matchWrap());
 
         exerciseSpinner = new Spinner(this);
         strengthContent.addView(exerciseSpinner, matchWrap());
@@ -1306,7 +1310,67 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         strengthPanel.setVisibility(showStrength ? View.VISIBLE : View.GONE);
         if (showStrength) {
             updateStrengthLog(activeSession);
+            rebuildPlanSection();
         }
+    }
+
+    private void rebuildPlanSection() {
+        if (planSection == null) {
+            return;
+        }
+        planSection.removeAllViews();
+        List<TrainingPlanItem> items = TrainingPlanStore.load(this);
+        if (items.isEmpty()) {
+            return;
+        }
+        TextView header = textView("训练计划");
+        header.setTextColor(Color.DKGRAY);
+        planSection.addView(header, matchWrap());
+
+        List<StrengthSet> sets = activeSession == null ? new ArrayList<>() : activeSession.strengthSets();
+        for (TrainingPlanItem item : items) {
+            int done = 0;
+            for (StrengthSet set : sets) {
+                if (set.exerciseName != null && set.exerciseName.equalsIgnoreCase(item.exerciseName)) {
+                    done++;
+                }
+            }
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, dp(4), 0, dp(4));
+
+            TextView nameView = textView(item.exerciseName);
+            nameView.setPadding(0, 0, 0, 0);
+            LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            row.addView(nameView, nameParams);
+
+            TextView progress = textView(done + " / " + item.plannedSets + " 组");
+            progress.setPadding(dp(8), 0, dp(8), 0);
+            boolean reached = item.plannedSets > 0 && done >= item.plannedSets;
+            progress.setTextColor(reached ? getColor(R.color.md_secondary) : Color.DKGRAY);
+            row.addView(progress, wrapContent());
+
+            MaterialButton pickButton = outlinedButton("选择");
+            pickButton.setMinWidth(0);
+            pickButton.setMinimumWidth(dp(64));
+            pickButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+            pickButton.setOnClickListener(v -> selectExerciseInSpinner(item.exerciseName));
+            row.addView(pickButton, wrapContent());
+
+            planSection.addView(row, matchWrap());
+        }
+    }
+
+    private void selectExerciseInSpinner(String name) {
+        if (name == null) return;
+        for (int i = 0; i < exerciseNames.size(); i++) {
+            if (exerciseNames.get(i).equalsIgnoreCase(name)) {
+                exerciseSpinner.setSelection(i);
+                return;
+            }
+        }
+        showToast("动作 \"" + name + "\" 不在动作库中，请先同步");
     }
 
     private MaterialButton repButton(String labelText, int delta) {
@@ -1505,6 +1569,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         pendingReps = 0;
         repsValueText.setText("0");
         updateStrengthLog(activeSession);
+        rebuildPlanSection();
         showToast("已记录: " + exerciseName + " " + set.displayWeight() + " x " + set.reps);
     }
 
