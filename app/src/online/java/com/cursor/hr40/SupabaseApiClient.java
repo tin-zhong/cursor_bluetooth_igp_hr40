@@ -101,6 +101,28 @@ public final class SupabaseApiClient {
         return workouts;
     }
 
+    public List<TrainingPlanItem> fetchTrainingPlan() throws IOException, JSONException, ApiException {
+        String select = "planned_sets,position,exercises(name)";
+        String path = "/rest/v1/training_plan_items?select="
+                + URLEncoder.encode(select, StandardCharsets.UTF_8)
+                + "&order=position.asc";
+        JSONArray rows = new JSONArray(getRest(path));
+        List<TrainingPlanItem> items = new ArrayList<>();
+        for (int i = 0; i < rows.length(); i++) {
+            JSONObject row = rows.getJSONObject(i);
+            JSONObject exercise = row.optJSONObject("exercises");
+            String name = exercise == null ? "" : exercise.optString("name", "");
+            if (name.trim().isEmpty()) {
+                continue;
+            }
+            items.add(new TrainingPlanItem(
+                    name,
+                    row.optInt("planned_sets", 1),
+                    row.optInt("position", i)));
+        }
+        return items;
+    }
+
     public List<CloudExercise> fetchExercises() throws IOException, JSONException, ApiException {
         String path = "/rest/v1/exercises?select=id,name&order=name.asc";
         JSONArray rows = new JSONArray(getRest(path));

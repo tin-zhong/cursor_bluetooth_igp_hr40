@@ -63,6 +63,7 @@ function clearDateFilter() {
     <AppHeader :title="headerTitle">
       <template #actions>
         <UButton to="/exercises" color="neutral" variant="ghost" label="动作管理" />
+        <UButton to="/plan" color="neutral" variant="ghost" label="训练计划" />
         <UButton to="/account" color="neutral" variant="ghost" label="用户管理" />
       </template>
     </AppHeader>
