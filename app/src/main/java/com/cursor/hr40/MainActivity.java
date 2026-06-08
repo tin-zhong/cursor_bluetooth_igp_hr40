@@ -73,6 +73,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private boolean heartRateLinkActive;
 
     private TextView headerUserNameText;
+    private TextView titleText;
     private TextView statusText;
     private TextView bpmText;
     private TextView durationText;
@@ -254,16 +255,16 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         fixedSection.setOrientation(LinearLayout.VERTICAL);
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
 
-        TextView title = new TextView(this);
-        title.setText(OnlineFeatures.appTitle(appVersionName()));
+        titleText = new TextView(this);
+        titleText.setText(OnlineFeatures.appTitle(appVersionName()));
         LinearLayout.LayoutParams titleParams = matchWrap();
         titleParams.topMargin = dp(8);
         titleParams.bottomMargin = dp(4);
-        title.setLayoutParams(titleParams);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
-        title.setTextColor(getColor(R.color.md_primary));
-        title.setGravity(Gravity.CENTER_HORIZONTAL);
-        fixedSection.addView(title, matchWrap());
+        titleText.setLayoutParams(titleParams);
+        titleText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
+        titleText.setTextColor(getColor(R.color.md_primary));
+        titleText.setGravity(Gravity.CENTER_HORIZONTAL);
+        fixedSection.addView(titleText, matchWrap());
 
         headerUserNameText = new TextView(this);
         headerUserNameText.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -281,48 +282,62 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         fixedSection.addView(statusText, statusParams);
 
         MaterialCardView metricsCard = card();
+        metricsCard.setContentPadding(dp(12), dp(10), dp(12), dp(10));
         LinearLayout metricsContent = verticalLayout();
         metricsCard.addView(metricsContent);
 
+        // 心率与消耗同一行展示
+        LinearLayout metricsRow = new LinearLayout(this);
+        metricsRow.setOrientation(LinearLayout.HORIZONTAL);
+        metricsRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout bpmColumn = verticalLayout();
         bpmText = new TextView(this);
         bpmText.setText("--");
-        bpmText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f);
+        bpmText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 44f);
         bpmText.setTextColor(Color.GRAY);
         bpmText.setGravity(Gravity.CENTER_HORIZONTAL);
-        metricsContent.addView(bpmText, matchWrap());
-
-        durationSection = verticalLayout();
-        TextView durationLabel = textView("运动时长");
-        durationLabel.setGravity(Gravity.CENTER_HORIZONTAL);
-        durationLabel.setTextColor(Color.DKGRAY);
-        durationSection.addView(durationLabel, matchWrap());
-        durationText = new TextView(this);
-        durationText.setText("00:00");
-        durationText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f);
-        durationText.setTextColor(Color.BLACK);
-        durationText.setGravity(Gravity.CENTER_HORIZONTAL);
-        durationSection.addView(durationText, matchWrap());
-        durationSection.setVisibility(View.GONE);
-        metricsContent.addView(durationSection, matchWrap());
+        bpmColumn.addView(bpmText, matchWrap());
+        TextView bpmLabel = textView("心率 bpm");
+        bpmLabel.setPadding(0, 0, 0, 0);
+        bpmLabel.setGravity(Gravity.CENTER_HORIZONTAL);
+        bpmLabel.setTextColor(Color.DKGRAY);
+        bpmColumn.addView(bpmLabel, matchWrap());
+        metricsRow.addView(bpmColumn, weighted());
 
         caloriesSection = verticalLayout();
-        TextView caloriesLabel = textView("估算消耗");
-        caloriesLabel.setGravity(Gravity.CENTER_HORIZONTAL);
-        caloriesLabel.setTextColor(Color.DKGRAY);
-        caloriesSection.addView(caloriesLabel, matchWrap());
         caloriesText = new TextView(this);
         caloriesText.setText("0.0 kcal");
-        caloriesText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f);
+        caloriesText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f);
         caloriesText.setTextColor(getColor(R.color.md_secondary));
         caloriesText.setGravity(Gravity.CENTER_HORIZONTAL);
         caloriesSection.addView(caloriesText, matchWrap());
+        TextView caloriesLabel = textView("估算消耗");
+        caloriesLabel.setPadding(0, 0, 0, 0);
+        caloriesLabel.setGravity(Gravity.CENTER_HORIZONTAL);
+        caloriesLabel.setTextColor(Color.DKGRAY);
+        caloriesSection.addView(caloriesLabel, matchWrap());
         caloriesSection.setVisibility(View.GONE);
-        metricsContent.addView(caloriesSection, matchWrap());
+        metricsRow.addView(caloriesSection, weighted());
 
-        TextView bpmLabel = textView("bpm");
-        bpmLabel.setGravity(Gravity.CENTER_HORIZONTAL);
-        bpmLabel.setTextColor(Color.DKGRAY);
-        metricsContent.addView(bpmLabel, matchWrap());
+        metricsContent.addView(metricsRow, matchWrap());
+
+        // 时间在心率-消耗一行下方展示
+        durationSection = verticalLayout();
+        durationText = new TextView(this);
+        durationText.setText("00:00");
+        durationText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40f);
+        durationText.setTextColor(Color.BLACK);
+        durationText.setGravity(Gravity.CENTER_HORIZONTAL);
+        durationSection.addView(durationText, matchWrap());
+        TextView durationLabel = textView("运动时长");
+        durationLabel.setPadding(0, 0, 0, 0);
+        durationLabel.setGravity(Gravity.CENTER_HORIZONTAL);
+        durationLabel.setTextColor(Color.DKGRAY);
+        durationSection.addView(durationLabel, matchWrap());
+        durationSection.setVisibility(View.GONE);
+        metricsContent.addView(durationSection, matchWrap());
+
         fixedSection.addView(metricsCard, matchWrap());
 
         ScrollView scrollView = new ScrollView(this);
@@ -604,6 +619,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
     private void refreshHeaderUserName() {
         if (headerUserNameText == null) {
+            return;
+        }
+        if (activeSession != null) {
+            headerUserNameText.setVisibility(View.GONE);
             return;
         }
         String userName = OnlineFeatures.headerUserName(this);
@@ -1276,6 +1295,15 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         endButton.setEnabled(endEnabled);
         updateEndButtonStyle(endEnabled);
         boolean inWorkout = activeSession != null;
+        // 运动过程中隐藏软件名称与用户名称，仅保留设备连接状态
+        if (titleText != null) {
+            titleText.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        }
+        if (headerUserNameText != null && inWorkout) {
+            headerUserNameText.setVisibility(View.GONE);
+        } else {
+            refreshHeaderUserName();
+        }
         detailViewButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         exerciseManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         editProfileButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
