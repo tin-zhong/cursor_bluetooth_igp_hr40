@@ -2,6 +2,7 @@
 import { ZONE_LABELS } from '~/composables/useWorkoutStats';
 
 const route = useRoute();
+const router = useRouter();
 const supabase = useSupabaseClient();
 const { fetchProfile } = useProfile();
 
@@ -11,6 +12,9 @@ const sets = ref<any[]>([]);
 const profile = ref<any>(null);
 const loading = ref(true);
 const errorMessage = ref('');
+
+const deleteModalOpen = ref(false);
+const deleting = ref(false);
 
 const stats = computed(() =>
   calculateWorkoutStats(profile.value, samples.value, workout.value?.workout_type || 'aerobic'),
@@ -65,6 +69,25 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+async function confirmDelete() {
+  if (!workout.value) return;
+  deleting.value = true;
+  errorMessage.value = '';
+  try {
+    const { error } = await supabase
+      .from('workout_records')
+      .delete()
+      .eq('id', workout.value.id);
+    if (error) throw error;
+    deleteModalOpen.value = false;
+    await router.push('/');
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '删除失败';
+  } finally {
+    deleting.value = false;
+  }
+}
 </script>
 
 <template>
@@ -76,10 +99,22 @@ onMounted(async () => {
 
     <template v-else-if="workout">
       <UCard>
-        <h1 class="text-xl font-semibold">{{ workoutTypeLabel(workout.workout_type) }}</h1>
-        <p class="text-sm text-muted mt-1">
-          {{ new Date(workout.start_millis).toLocaleString('zh-CN') }}
-        </p>
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h1 class="text-xl font-semibold">{{ workoutTypeLabel(workout.workout_type) }}</h1>
+            <p class="text-sm text-muted mt-1">
+              {{ new Date(workout.start_millis).toLocaleString('zh-CN') }}
+            </p>
+          </div>
+          <UButton
+            color="error"
+            variant="soft"
+            size="sm"
+            icon="i-lucide-trash-2"
+            label="删除"
+            @click="deleteModalOpen = true"
+          />
+        </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
           <div class="rounded-lg bg-elevated/50 border border-default p-3">
             <div class="text-xs text-muted">时长</div>
@@ -122,5 +157,35 @@ onMounted(async () => {
         <p v-else class="text-sm text-muted">无力量组记录</p>
       </UCard>
     </template>
+
+    <UModal v-model:open="deleteModalOpen" :dismissible="!deleting">
+      <template #header>
+        <span class="font-semibold text-error">删除运动记录</span>
+      </template>
+      <template #body>
+        <p class="text-muted">
+          确定要删除这条运动记录吗？该操作不可恢复，关联的心率采样和力量组也会一并清除。
+        </p>
+      </template>
+      <template #footer>
+        <div class="flex gap-2 w-full">
+          <UButton
+            label="取消"
+            color="neutral"
+            variant="soft"
+            class="flex-1"
+            :disabled="deleting"
+            @click="deleteModalOpen = false"
+          />
+          <UButton
+            label="确认删除"
+            color="error"
+            class="flex-1"
+            :loading="deleting"
+            @click="confirmDelete"
+          />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
