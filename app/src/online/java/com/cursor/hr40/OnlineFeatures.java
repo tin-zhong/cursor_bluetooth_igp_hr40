@@ -207,6 +207,26 @@ public final class OnlineFeatures {
         }
     }
 
+    public static void deleteWorkout(Activity activity, String sessionId, Runnable onSuccess, Runnable onError) {
+        OnlineSyncManager.deleteWorkoutAsync(activity, sessionId, new OnlineSyncManager.SyncCallback() {
+            @Override
+            public void onSuccess(String message) {
+                activity.runOnUiThread(() -> {
+                    toast(activity, message);
+                    onSuccess.run();
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                activity.runOnUiThread(() -> {
+                    toast(activity, "删除失败: " + message);
+                    onError.run();
+                });
+            }
+        });
+    }
+
     public static void onProfileSaved(Context context, UserProfile profile) {
         if (profile == null) {
             return;

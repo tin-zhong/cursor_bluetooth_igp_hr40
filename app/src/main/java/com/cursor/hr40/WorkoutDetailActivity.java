@@ -1,6 +1,8 @@
 package com.cursor.hr40;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.widget.LinearLayout;
@@ -9,6 +11,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.io.IOException;
 
@@ -34,6 +37,23 @@ public final class WorkoutDetailActivity extends AppCompatActivity {
         LinearLayout.LayoutParams exportParams = PageScaffold.matchWrap();
         exportParams.topMargin = Math.round(16 * getResources().getDisplayMetrics().density);
         root.addView(exportButton, exportParams);
+
+        MaterialButton deleteButton = PageScaffold.actionButton(this, "删除该运动记录", () -> confirmDelete(session));
+        deleteButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(211, 47, 47)));
+        deleteButton.setTextColor(Color.WHITE);
+        LinearLayout.LayoutParams deleteParams = PageScaffold.matchWrap();
+        deleteParams.topMargin = Math.round(8 * getResources().getDisplayMetrics().density);
+        root.addView(deleteButton, deleteParams);
+    }
+
+    private void confirmDelete(WorkoutSession session) {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("删除运动记录")
+                .setMessage("确定要删除这条运动记录吗？该操作不可恢复，关联的心率采样和力量组也会一并清除。")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("确认删除", (dialog, which) ->
+                        OnlineFeatures.deleteWorkout(this, session.id, this::finish, () -> {}))
+                .show();
     }
 
     private void exportSession(UserProfile profile, WorkoutSession session) {

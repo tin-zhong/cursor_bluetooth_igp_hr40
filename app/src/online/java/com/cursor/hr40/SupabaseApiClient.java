@@ -216,6 +216,25 @@ public final class SupabaseApiClient {
         SyncStateStore.markWorkoutSynced(context, session.id);
     }
 
+    public void deleteWorkoutByLocalId(String localSessionId) throws IOException, ApiException {
+        String userId = requireUserId();
+        String encodedLocalId = URLEncoder.encode(localSessionId, StandardCharsets.UTF_8);
+        deleteRest("/rest/v1/workout_records?user_id=eq." + userId + "&local_id=eq." + encodedLocalId);
+    }
+
+    public List<String> fetchWorkoutLocalIds() throws IOException, JSONException, ApiException {
+        String path = "/rest/v1/workout_records?select=local_id";
+        JSONArray rows = new JSONArray(getRest(path));
+        List<String> ids = new ArrayList<>();
+        for (int i = 0; i < rows.length(); i++) {
+            String id = rows.getJSONObject(i).optString("local_id", "");
+            if (!id.isEmpty()) {
+                ids.add(id);
+            }
+        }
+        return ids;
+    }
+
     private AuthResult parseAuthResult(JSONObject json) throws JSONException {
         String accessToken = json.getString("access_token");
         String refreshToken = json.optString("refresh_token", "");

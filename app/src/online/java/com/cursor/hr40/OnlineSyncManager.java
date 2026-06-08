@@ -7,7 +7,9 @@ import org.json.JSONException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public final class OnlineSyncManager {
     public interface SyncCallback {
@@ -42,11 +44,51 @@ public final class OnlineSyncManager {
 
     public static void pullWorkoutsToLocal(Context context) throws IOException, JSONException, SupabaseApiClient.ApiException {
         SupabaseApiClient client = new SupabaseApiClient(context);
+        Set<String> cloudIds = new HashSet<>();
         for (SupabaseApiClient.CloudWorkout cloudWorkout : client.fetchWorkouts()) {
             WorkoutSession session = cloudWorkout.toSession();
             WorkoutRepository.saveToDatabase(context, session);
             SyncStateStore.markWorkoutSynced(context, session.id);
+            cloudIds.add(session.id);
         }
+        // 对账：本地标记已同步但云端不存在 → 视为云端被删除，本地一并清除
+        List<String> toDelete = new ArrayList<>();
+        for (String syncedId : SyncStateStore.syncedWorkoutIds(context)) {
+            if (!cloudIds.contains(syncedId)) {
+                toDelete.add(syncedId);
+            }
+        }
+        if (!toDelete.isEmpty()) {
+            WorkoutRepository.deleteWorkoutsByIds(context, toDelete);
+            for (String id : toDelete) {
+                SyncStateStore.unmarkWorkoutSynced(context, id);
+            }
+        }
+    }
+
+    public static void deleteWorkout(Context context, String sessionId)
+            throws IOException, SupabaseApiClient.ApiException {
+        if (sessionId == null || sessionId.isEmpty()) {
+            return;
+        }
+        new SupabaseApiClient(context).deleteWorkoutByLocalId(sessionId);
+        WorkoutRepository.deleteWorkoutsByIds(context, Collections.singletonList(sessionId));
+        SyncStateStore.unmarkWorkoutSynced(context, sessionId);
+    }
+
+    public static void deleteWorkoutAsync(Context context, String sessionId, SyncCallback callback) {
+        new Thread(() -> {
+            try {
+                deleteWorkout(context, sessionId);
+                if (callback != null) {
+                    callback.onSuccess("运动记录已删除");
+                }
+            } catch (Exception e) {
+                if (callback != null) {
+                    callback.onError(e.getMessage() == null ? "删除失败" : e.getMessage());
+                }
+            }
+        }).start();
     }
 
     public static void pullTrainingPlanToLocal(Context context) throws IOException, JSONException, SupabaseApiClient.ApiException {

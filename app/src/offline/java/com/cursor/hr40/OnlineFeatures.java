@@ -101,4 +101,15 @@ public final class OnlineFeatures {
 
     public static void onProfileSaved(Context context, UserProfile profile) {
     }
+
+    public static void deleteWorkout(Activity activity, String sessionId, Runnable onSuccess, Runnable onError) {
+        try {
+            WorkoutRepository.deleteWorkoutsByIds(activity, java.util.Collections.singletonList(sessionId));
+            android.widget.Toast.makeText(activity, "运动记录已删除", android.widget.Toast.LENGTH_SHORT).show();
+            onSuccess.run();
+        } catch (Exception e) {
+            android.widget.Toast.makeText(activity, "删除失败: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+            onError.run();
+        }
+    }
 }

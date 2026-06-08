@@ -24,6 +24,18 @@ public final class SyncStateStore {
         preferences.edit().putStringSet(KEY_SYNCED_WORKOUTS, synced).apply();
     }
 
+    public static void unmarkWorkoutSynced(Context context, String localSessionId) {
+        SharedPreferences preferences = prefs(context);
+        Set<String> synced = new HashSet<>(preferences.getStringSet(KEY_SYNCED_WORKOUTS, new HashSet<>()));
+        if (synced.remove(localSessionId)) {
+            preferences.edit().putStringSet(KEY_SYNCED_WORKOUTS, synced).apply();
+        }
+    }
+
+    public static Set<String> syncedWorkoutIds(Context context) {
+        return new HashSet<>(prefs(context).getStringSet(KEY_SYNCED_WORKOUTS, new HashSet<>()));
+    }
+
     public static void clear(Context context) {
         prefs(context).edit().clear().apply();
     }
