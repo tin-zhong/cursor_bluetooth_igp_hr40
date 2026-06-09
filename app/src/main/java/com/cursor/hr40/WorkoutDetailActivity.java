@@ -30,6 +30,14 @@ public final class WorkoutDetailActivity extends AppCompatActivity {
 
         root.addView(WorkoutDetailViews.build(this, profile, session), PageScaffold.matchWrap());
 
+        if (OnlineFeatures.showWorkoutUploadButton()) {
+            MaterialButton uploadButton = new MaterialButton(this);
+            OnlineFeatures.configureWorkoutUploadButton(this, uploadButton, session);
+            LinearLayout.LayoutParams uploadParams = PageScaffold.matchWrap();
+            uploadParams.topMargin = Math.round(16 * getResources().getDisplayMetrics().density);
+            root.addView(uploadButton, uploadParams);
+        }
+
         MaterialButton exportButton = PageScaffold.actionButton(this, "导出运动记录 PDF", () -> exportSession(profile, session));
         LinearLayout.LayoutParams exportParams = PageScaffold.matchWrap();
         exportParams.topMargin = Math.round(16 * getResources().getDisplayMetrics().density);

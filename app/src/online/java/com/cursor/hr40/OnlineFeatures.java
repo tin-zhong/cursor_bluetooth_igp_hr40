@@ -100,14 +100,18 @@ public final class OnlineFeatures {
 
     private static final int UPLOAD_GREEN = android.graphics.Color.rgb(46, 125, 50);
 
-    public static void configureUploadButton(MainActivity activity, MaterialButton button) {
+    public static boolean showWorkoutUploadButton() {
+        return true;
+    }
+
+    public static void configureWorkoutUploadButton(Activity activity, MaterialButton button, WorkoutSession session) {
         button.setText("数据上传");
         OnlineUi.styleButton(button);
-        applyUploadButtonColor(button, !OnlineSyncManager.hasPendingWorkouts(activity));
+        applyUploadButtonColor(button, OnlineSyncManager.isWorkoutSynced(activity, session.id));
         button.setOnClickListener(v -> {
             button.setEnabled(false);
-            button.setText("正在检查云端数据...");
-            OnlineSyncManager.uploadMissingWorkoutsAsync(activity, new OnlineSyncManager.UploadCallback() {
+            button.setText("正在上传...");
+            OnlineSyncManager.uploadWorkoutAsync(activity, session, new OnlineSyncManager.UploadCallback() {
                 @Override
                 public void onComplete(boolean allUploaded, int uploadedCount, int cloudCount) {
                     activity.runOnUiThread(() -> {
@@ -115,9 +119,9 @@ public final class OnlineFeatures {
                         button.setText("数据上传");
                         applyUploadButtonColor(button, allUploaded);
                         if (uploadedCount > 0) {
-                            activity.showToast("已上传 " + uploadedCount + " 条运动数据，云端共 " + cloudCount + " 条");
+                            toast(activity, "运动数据已上传到云端");
                         } else {
-                            activity.showToast("云端数据已是最新，共 " + cloudCount + " 条");
+                            toast(activity, "该运动数据已在云端");
                         }
                     });
                 }
@@ -128,7 +132,7 @@ public final class OnlineFeatures {
                         button.setEnabled(true);
                         button.setText("数据上传");
                         applyUploadButtonColor(button, false);
-                        activity.showToast("数据上传失败: " + message);
+                        toast(activity, "数据上传失败: " + message);
                     });
                 }
             });
