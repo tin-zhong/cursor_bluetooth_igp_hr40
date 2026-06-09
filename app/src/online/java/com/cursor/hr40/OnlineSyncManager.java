@@ -70,6 +70,41 @@ public final class OnlineSyncManager {
         }).start();
     }
 
+    /** True when this specific local workout has already been synced to the cloud. */
+    public static boolean isWorkoutSynced(Context context, String sessionId) {
+        return SyncStateStore.isWorkoutSynced(context, sessionId);
+    }
+
+    /**
+     * Upload a single workout if the cloud does not already have it. Workouts already present
+     * in the cloud are only marked synced locally.
+     */
+    public static void uploadWorkoutAsync(Context context, WorkoutSession session, UploadCallback callback) {
+        new Thread(() -> {
+            try {
+                if (session == null) {
+                    throw new SupabaseApiClient.ApiException("未找到运动记录");
+                }
+                SupabaseApiClient client = new SupabaseApiClient(context);
+                java.util.Set<String> cloudIds = client.fetchWorkoutLocalIds();
+                int uploaded = 0;
+                if (cloudIds.contains(session.id)) {
+                    SyncStateStore.markWorkoutSynced(context, session.id);
+                } else {
+                    client.syncWorkout(session);
+                    uploaded = 1;
+                }
+                if (callback != null) {
+                    callback.onComplete(true, uploaded, cloudIds.size() + uploaded);
+                }
+            } catch (Exception e) {
+                if (callback != null) {
+                    callback.onError(e.getMessage() == null ? "上传失败" : e.getMessage());
+                }
+            }
+        }).start();
+    }
+
     public static void pullExercisesToLocal(Context context) throws IOException, JSONException, SupabaseApiClient.ApiException {
         SupabaseApiClient client = new SupabaseApiClient(context);
         List<SupabaseApiClient.CloudExercise> cloudExercises = client.fetchExercises();

@@ -86,7 +86,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private MaterialButton startButton;
     private MaterialButton endButton;
     private MaterialButton detailViewButton;
-    private MaterialButton uploadButton;
     private MaterialButton countdownButton;
     private MaterialButton exerciseManageButton;
     private MaterialButton editProfileButton;
@@ -401,10 +400,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         detailViewButton = materialButton("查看运动明细", v ->
                 startActivity(new Intent(this, WorkoutDetailPickerActivity.class)));
         root.addView(detailViewButton, matchWrap());
-
-        uploadButton = materialButton("数据上传", v -> {});
-        OnlineFeatures.configureUploadButton(this, uploadButton);
-        root.addView(uploadButton, matchWrap());
 
         exerciseManageButton = materialButton("动作管理", v ->
                 startActivity(new Intent(this, ExerciseManagementActivity.class)));

@@ -70,7 +70,11 @@ public final class OnlineFeatures {
         onDone.run();
     }
 
-    public static void configureUploadButton(MainActivity activity, MaterialButton button) {
+    public static boolean showWorkoutUploadButton() {
+        return false;
+    }
+
+    public static void configureWorkoutUploadButton(Activity activity, MaterialButton button, WorkoutSession session) {
         button.setVisibility(View.GONE);
     }
 
