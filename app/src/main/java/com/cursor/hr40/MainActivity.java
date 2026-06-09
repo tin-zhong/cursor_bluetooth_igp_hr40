@@ -71,6 +71,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private HeartRateSample latestSample;
     private boolean reconnectScheduled;
     private boolean heartRateLinkActive;
+    private boolean heartRateDisconnectAlerted;
+    private AlertPlayer alertPlayer;
 
     private TextView headerUserNameText;
     private TextView titleText;
@@ -84,6 +86,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private MaterialButton startButton;
     private MaterialButton endButton;
     private MaterialButton detailViewButton;
+    private MaterialButton uploadButton;
     private MaterialButton countdownButton;
     private MaterialButton exerciseManageButton;
     private MaterialButton editProfileButton;
@@ -138,6 +141,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         profile = ProfileStore.load(this);
         heartRateManager = new BleHeartRateManager(this, this);
         trainingCountdownTimer = new TrainingCountdownTimer(this);
+        alertPlayer = new AlertPlayer(this);
+        alertPlayer.prepare();
         buildUi();
         OnlineFeatures.onMainReady(this, () -> {
             reloadExerciseNames();
@@ -165,6 +170,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         if (heartRateManager != null) {
             heartRateManager.close();
         }
+        if (alertPlayer != null) {
+            alertPlayer.release();
+        }
         super.onDestroy();
     }
 
@@ -184,8 +192,17 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     @Override
     public void onStatus(String status) {
         statusText.setText(status);
+        boolean disconnected = status.contains("已断开");
+        if (disconnected && heartRateLinkActive) {
+            alertHeartRateDisconnected();
+        }
         if (shouldClearHeartRateDisplay(status)) {
             showDisconnectedHeartRate();
+        }
+        // 运动进行中若心率带断开，自动重新扫描连接，避免心率采样在中途中断导致
+        // 心率时长远小于真实训练时长。
+        if (activeSession != null && disconnected) {
+            scheduleWorkoutReconnect();
         }
     }
 
@@ -193,6 +210,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     public void onHeartRate(HeartRateSample sample) {
         reconnectScheduled = false;
         heartRateLinkActive = true;
+        heartRateDisconnectAlerted = false;
         latestSample = sample;
         bpmText.setText(String.valueOf(sample.bpm));
         int maxHr = profile == null ? 190 : profile.estimatedMaxHeartRate();
@@ -215,10 +233,27 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     @Override
     public void onError(String message) {
         statusText.setText(message);
+        boolean wasLinked = heartRateLinkActive;
         showDisconnectedHeartRate();
         showToast(message);
-        if (activeSession != null && message.contains("连接异常: 8")) {
+        boolean connectionIssue = message.contains("连接异常") || message.contains("发现服务失败");
+        if (connectionIssue && wasLinked) {
+            alertHeartRateDisconnected();
+        }
+        // 运动进行中遇到任何连接异常/服务发现失败都尝试自动重连，保证全程心率采样。
+        if (activeSession != null && connectionIssue) {
             scheduleWorkoutReconnect();
+        }
+    }
+
+    /** 心率带从已连接状态掉线时，蜂鸣并语音播报一次（重连收到新样本前不重复提示）。 */
+    private void alertHeartRateDisconnected() {
+        if (heartRateDisconnectAlerted) {
+            return;
+        }
+        heartRateDisconnectAlerted = true;
+        if (alertPlayer != null) {
+            alertPlayer.announce("心率带已断开");
         }
     }
 
@@ -366,6 +401,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         detailViewButton = materialButton("查看运动明细", v ->
                 startActivity(new Intent(this, WorkoutDetailPickerActivity.class)));
         root.addView(detailViewButton, matchWrap());
+
+        uploadButton = materialButton("数据上传", v -> {});
+        OnlineFeatures.configureUploadButton(this, uploadButton);
+        root.addView(uploadButton, matchWrap());
 
         exerciseManageButton = materialButton("动作管理", v ->
                 startActivity(new Intent(this, ExerciseManagementActivity.class)));
@@ -522,6 +561,14 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     private void beginWorkout(String workoutType) {
+        // 开启新运动前动态清空上一段运动遗留的缓存数据与心率状态，避免历史心率值
+        // 混入新运动造成开局心率剧烈波动、消耗估算不准。
+        WorkoutRepository.clearInProgressBuffers(this);
+        latestSample = null;
+        reconnectScheduled = false;
+        lastDisplayedDurationSeconds = -1L;
+        showDisconnectedHeartRate();
+
         activeSession = WorkoutSession.startNow(workoutType);
         workoutPaused = false;
         pauseStartedAtMillis = 0L;

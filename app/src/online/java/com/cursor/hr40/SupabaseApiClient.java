@@ -85,6 +85,20 @@ public final class SupabaseApiClient {
         SyncStateStore.clear(context);
     }
 
+    /** Lightweight query for the set of workout local_ids already stored in the cloud. */
+    public java.util.Set<String> fetchWorkoutLocalIds() throws IOException, JSONException, ApiException {
+        String path = "/rest/v1/workout_records?select=local_id";
+        JSONArray rows = new JSONArray(getRest(path));
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (int i = 0; i < rows.length(); i++) {
+            String localId = rows.getJSONObject(i).optString("local_id", "");
+            if (!localId.isEmpty()) {
+                ids.add(localId);
+            }
+        }
+        return ids;
+    }
+
     public List<CloudWorkout> fetchWorkouts() throws IOException, JSONException, ApiException {
         String select = "local_id,start_millis,end_millis,workout_type,"
                 + "heart_rate_samples(timestamp_millis,bpm,contact_supported,contact_detected,"

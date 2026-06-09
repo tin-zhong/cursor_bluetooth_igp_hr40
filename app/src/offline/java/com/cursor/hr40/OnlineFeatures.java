@@ -70,6 +70,10 @@ public final class OnlineFeatures {
         onDone.run();
     }
 
+    public static void configureUploadButton(MainActivity activity, MaterialButton button) {
+        button.setVisibility(View.GONE);
+    }
+
     public static void configureLogoutButton(MainActivity activity, MaterialButton button) {
         button.setVisibility(View.GONE);
     }
