@@ -100,9 +100,11 @@ public final class SupabaseApiClient {
     }
 
     public List<CloudWorkout> fetchWorkouts() throws IOException, JSONException, ApiException {
-        String select = "local_id,start_millis,end_millis,workout_type,"
-                + "heart_rate_samples(timestamp_millis,bpm,contact_supported,contact_detected,"
-                + "energy_expended_kj,rr_interval_count),"
+        // Heart-rate samples are fetched per-workout with pagination (see fetchAllSamples)
+        // instead of being embedded here: a single workout can hold thousands of samples,
+        // which exceeds PostgREST's row cap and would silently truncate an embedded array
+        // (causing the in-app record to show only the first ~19 minutes of heart rate).
+        String select = "id,local_id,start_millis,end_millis,workout_type,"
                 + "strength_sets(exercise_name,weight,weight_unit,reps,timestamp_millis)";
         String path = "/rest/v1/workout_records?select="
                 + URLEncoder.encode(select, StandardCharsets.UTF_8)
@@ -110,9 +112,43 @@ public final class SupabaseApiClient {
         JSONArray rows = new JSONArray(getRest(path));
         List<CloudWorkout> workouts = new ArrayList<>();
         for (int i = 0; i < rows.length(); i++) {
-            workouts.add(CloudWorkout.fromJson(rows.getJSONObject(i)));
+            JSONObject row = rows.getJSONObject(i);
+            List<HeartRateSample> samples = fetchAllSamples(row.getString("id"));
+            workouts.add(CloudWorkout.fromJson(row, samples));
         }
         return workouts;
+    }
+
+    /** Fetch every heart-rate sample of a workout, paginated and ordered by time. */
+    private List<HeartRateSample> fetchAllSamples(String workoutId)
+            throws IOException, JSONException, ApiException {
+        final int pageSize = 1000;
+        List<HeartRateSample> samples = new ArrayList<>();
+        for (int offset = 0; ; offset += pageSize) {
+            String path = "/rest/v1/heart_rate_samples?workout_id=eq." + workoutId
+                    + "&select=timestamp_millis,bpm,contact_supported,contact_detected,"
+                    + "energy_expended_kj,rr_interval_count"
+                    + "&order=timestamp_millis.asc"
+                    + "&limit=" + pageSize + "&offset=" + offset;
+            JSONArray rows = new JSONArray(getRest(path));
+            for (int i = 0; i < rows.length(); i++) {
+                JSONObject row = rows.getJSONObject(i);
+                Integer energy = row.isNull("energy_expended_kj")
+                        ? null
+                        : row.optInt("energy_expended_kj");
+                samples.add(new HeartRateSample(
+                        row.getLong("timestamp_millis"),
+                        row.getInt("bpm"),
+                        row.optBoolean("contact_supported"),
+                        row.optBoolean("contact_detected"),
+                        energy,
+                        row.optInt("rr_interval_count")));
+            }
+            if (rows.length() < pageSize) {
+                break;
+            }
+        }
+        return samples;
     }
 
     public List<TrainingPlanItem> fetchTrainingPlan() throws IOException, JSONException, ApiException {
@@ -440,25 +476,7 @@ public final class SupabaseApiClient {
             this.strengthSets = strengthSets;
         }
 
-        static CloudWorkout fromJson(JSONObject json) throws JSONException {
-            List<HeartRateSample> samples = new ArrayList<>();
-            JSONArray hrArray = json.optJSONArray("heart_rate_samples");
-            if (hrArray != null) {
-                for (int i = 0; i < hrArray.length(); i++) {
-                    JSONObject row = hrArray.getJSONObject(i);
-                    Integer energy = row.isNull("energy_expended_kj")
-                            ? null
-                            : row.optInt("energy_expended_kj");
-                    samples.add(new HeartRateSample(
-                            row.getLong("timestamp_millis"),
-                            row.getInt("bpm"),
-                            row.optBoolean("contact_supported"),
-                            row.optBoolean("contact_detected"),
-                            energy,
-                            row.optInt("rr_interval_count")));
-                }
-            }
-
+        static CloudWorkout fromJson(JSONObject json, List<HeartRateSample> samples) throws JSONException {
             List<StrengthSet> strengthSets = new ArrayList<>();
             JSONArray setArray = json.optJSONArray("strength_sets");
             if (setArray != null) {
