@@ -2,6 +2,11 @@ name: Build dist APK
 
 on:
   workflow_dispatch:
+    inputs:
+      release:
+        description: '生成正式版本 vX.Y.Z.apk（否则仅 debug 包）'
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -26,6 +31,7 @@ jobs:
       - name: Build signed dist APK
         env:
           HR40_DISTRIBUTION_KEYSTORE_BASE64: ${{ secrets.HR40_DISTRIBUTION_KEYSTORE_BASE64 }}
+          RELEASE_DIST_APK: ${{ inputs.release && '1' || '' }}
         run: |
           export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
