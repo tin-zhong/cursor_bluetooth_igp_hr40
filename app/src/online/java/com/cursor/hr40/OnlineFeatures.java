@@ -98,6 +98,49 @@ public final class OnlineFeatures {
         });
     }
 
+    private static final int UPLOAD_GREEN = android.graphics.Color.rgb(46, 125, 50);
+
+    public static void configureUploadButton(MainActivity activity, MaterialButton button) {
+        button.setText("数据上传");
+        OnlineUi.styleButton(button);
+        applyUploadButtonColor(button, !OnlineSyncManager.hasPendingWorkouts(activity));
+        button.setOnClickListener(v -> {
+            button.setEnabled(false);
+            button.setText("正在检查云端数据...");
+            OnlineSyncManager.uploadMissingWorkoutsAsync(activity, new OnlineSyncManager.UploadCallback() {
+                @Override
+                public void onComplete(boolean allUploaded, int uploadedCount, int cloudCount) {
+                    activity.runOnUiThread(() -> {
+                        button.setEnabled(true);
+                        button.setText("数据上传");
+                        applyUploadButtonColor(button, allUploaded);
+                        if (uploadedCount > 0) {
+                            activity.showToast("已上传 " + uploadedCount + " 条运动数据，云端共 " + cloudCount + " 条");
+                        } else {
+                            activity.showToast("云端数据已是最新，共 " + cloudCount + " 条");
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(String message) {
+                    activity.runOnUiThread(() -> {
+                        button.setEnabled(true);
+                        button.setText("数据上传");
+                        applyUploadButtonColor(button, false);
+                        activity.showToast("数据上传失败: " + message);
+                    });
+                }
+            });
+        });
+    }
+
+    private static void applyUploadButtonColor(MaterialButton button, boolean allUploaded) {
+        int color = allUploaded ? UPLOAD_GREEN : button.getContext().getColor(R.color.md_primary);
+        button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(color));
+        button.setTextColor(android.graphics.Color.WHITE);
+    }
+
     public static void configureLogoutButton(MainActivity activity, MaterialButton button) {
         button.setText("退出登录");
         OnlineUi.styleButton(button);

@@ -94,6 +94,23 @@ public final class WorkoutRepository {
         }
     }
 
+    /**
+     * Remove any leftover in-progress JSON buffers (e.g. from a previous session that
+     * was never archived because the app was killed). Completed workouts already live in
+     * Room, so dropping these stale buffers prevents old samples from leaking into a new
+     * session's cached data.
+     */
+    public static void clearInProgressBuffers(Context context) {
+        File dir = workoutsDir(context);
+        File[] files = dir.listFiles((file, name) -> name.endsWith(".json"));
+        if (files == null) {
+            return;
+        }
+        for (File file : files) {
+            file.delete();
+        }
+    }
+
     public static WorkoutSession loadLatest(Context context) {
         List<WorkoutSession> sessions = loadAll(context);
         return sessions.isEmpty() ? null : sessions.get(0);

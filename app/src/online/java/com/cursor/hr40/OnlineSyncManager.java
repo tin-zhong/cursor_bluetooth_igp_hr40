@@ -16,7 +16,58 @@ public final class OnlineSyncManager {
         void onError(String message);
     }
 
+    public interface UploadCallback {
+        /**
+         * @param allUploaded   true when every local workout now exists in the cloud
+         * @param uploadedCount number of workouts uploaded during this run
+         * @param cloudCount    total workouts stored in the cloud after this run
+         */
+        void onComplete(boolean allUploaded, int uploadedCount, int cloudCount);
+
+        void onError(String message);
+    }
+
     private OnlineSyncManager() {
+    }
+
+    /** True when at least one local workout has not been marked as synced to the cloud. */
+    public static boolean hasPendingWorkouts(Context context) {
+        for (WorkoutSession session : WorkoutRepository.loadAll(context)) {
+            if (!SyncStateStore.isWorkoutSynced(context, session.id)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Inspect the cloud, then (re)upload every local workout that is missing there.
+     * Workouts already present in the cloud are only marked synced locally.
+     */
+    public static void uploadMissingWorkoutsAsync(Context context, UploadCallback callback) {
+        new Thread(() -> {
+            try {
+                SupabaseApiClient client = new SupabaseApiClient(context);
+                java.util.Set<String> cloudIds = client.fetchWorkoutLocalIds();
+                int uploaded = 0;
+                for (WorkoutSession session : WorkoutRepository.loadAll(context)) {
+                    if (cloudIds.contains(session.id)) {
+                        SyncStateStore.markWorkoutSynced(context, session.id);
+                    } else {
+                        client.syncWorkout(session);
+                        uploaded++;
+                    }
+                }
+                int cloudCount = cloudIds.size() + uploaded;
+                if (callback != null) {
+                    callback.onComplete(true, uploaded, cloudCount);
+                }
+            } catch (Exception e) {
+                if (callback != null) {
+                    callback.onError(e.getMessage() == null ? "上传失败" : e.getMessage());
+                }
+            }
+        }).start();
     }
 
     public static void pullExercisesToLocal(Context context) throws IOException, JSONException, SupabaseApiClient.ApiException {

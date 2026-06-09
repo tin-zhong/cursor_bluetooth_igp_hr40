@@ -9,6 +9,9 @@ export const ZONE_LABELS = [
 const MIN_HR_FOR_CALORIES = 60;
 const STRENGTH_ACTIVITY_COEFFICIENT = 0.88;
 const KCAL_PER_KJ = 4.184;
+// Adjacent samples further apart than this represent a pause / disconnect / workout
+// transition and are skipped so they do not inflate the consumption or zone times.
+const MAX_SAMPLE_GAP_MILLIS = 10_000;
 
 export interface Profile {
   name: string;
@@ -33,7 +36,7 @@ function caloriesPerMinute(profile: Profile, bpm: number) {
 
 function caloriesForSegment(profile: Profile, current: HeartRateSample, next: HeartRateSample) {
   const deltaMillis = Math.max(0, next.timestamp_millis - current.timestamp_millis);
-  if (deltaMillis === 0) return 0;
+  if (deltaMillis === 0 || deltaMillis > MAX_SAMPLE_GAP_MILLIS) return 0;
   const averageBpm = (current.bpm + next.bpm) / 2;
   if (averageBpm < MIN_HR_FOR_CALORIES) return 0;
   return caloriesPerMinute(profile, averageBpm) * (deltaMillis / 60000);
@@ -91,6 +94,7 @@ export function calculateWorkoutStats(
   const zoneMillis = Array(ZONE_LABELS.length).fill(0);
   for (let i = 0; i < samples.length - 1; i++) {
     const delta = Math.max(0, samples[i + 1].timestamp_millis - samples[i].timestamp_millis);
+    if (delta > MAX_SAMPLE_GAP_MILLIS) continue;
     zoneMillis[zoneIndex(samples[i].bpm, maxHr)] += delta;
   }
 

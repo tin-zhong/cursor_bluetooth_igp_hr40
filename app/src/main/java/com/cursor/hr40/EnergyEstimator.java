@@ -10,6 +10,13 @@ import java.util.List;
  */
 public final class EnergyEstimator {
     public static final int MIN_HR_FOR_CALORIES = 60;
+    /**
+     * Maximum gap between two adjacent samples that still counts as continuous exercise.
+     * Larger gaps indicate a pause, a band disconnect/reconnect, or the transition between
+     * two workouts; crediting calories across them would inflate the estimate, so such
+     * intervals are skipped.
+     */
+    public static final long MAX_SAMPLE_GAP_MILLIS = 10_000L;
     // Keytel is tuned for continuous aerobic work. Strength mode is corrected down
     // to better reflect rest intervals between sets.
     public static final double STRENGTH_ACTIVITY_COEFFICIENT = 0.88;
@@ -41,7 +48,7 @@ public final class EnergyEstimator {
             return 0.0;
         }
         long deltaMillis = Math.max(0L, next.timestampMillis - current.timestampMillis);
-        if (deltaMillis == 0L) {
+        if (deltaMillis == 0L || deltaMillis > MAX_SAMPLE_GAP_MILLIS) {
             return 0.0;
         }
         double averageBpm = (current.bpm + next.bpm) / 2.0;

@@ -47,6 +47,10 @@ public final class WorkoutStats {
             HeartRateSample current = samples.get(i);
             HeartRateSample next = samples.get(i + 1);
             long delta = Math.max(0L, next.timestampMillis - current.timestampMillis);
+            // Skip gaps that span a pause/disconnect so they are not attributed to a zone.
+            if (delta > EnergyEstimator.MAX_SAMPLE_GAP_MILLIS) {
+                continue;
+            }
             zones[zoneIndex(current.bpm, maxHr)] += delta;
         }
 
