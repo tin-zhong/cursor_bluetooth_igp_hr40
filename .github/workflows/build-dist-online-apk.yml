@@ -31,7 +31,7 @@ jobs:
       - name: Build signed Online dist APK
         env:
           HR40_ONLINE_DISTRIBUTION_KEYSTORE_BASE64: ${{ secrets.HR40_ONLINE_DISTRIBUTION_KEYSTORE_BASE64 }}
-          RELEASE_DIST_APK: ${{ inputs.release && '1' || '' }}
+          RELEASE_DIST_APK: ${{ (inputs.release || github.event_name == 'push') && '1' || '' }}
         run: |
           export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
