@@ -74,6 +74,10 @@ public final class OnlineFeatures {
         return false;
     }
 
+    public static void styleWorkoutListItem(Activity activity, MaterialButton button, WorkoutSession session) {
+        // 离线版不区分上传状态，保持默认样式
+    }
+
     public static void configureWorkoutUploadButton(Activity activity, MaterialButton button, WorkoutSession session) {
         button.setVisibility(View.GONE);
     }

@@ -38,6 +38,15 @@ public final class WorkoutDetailPickerActivity extends AppCompatActivity {
         OnlineFeatures.refreshWorkoutList(this, this::populateList);
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 从详情页上传后返回时，重新刷新列表以反映最新上传状态（变绿）
+        if (listContainer != null) {
+            populateList();
+        }
+    }
+
     private void showDatePicker() {
         long selection = selectedDate == null
                 ? MaterialDatePicker.todayInUtcMilliseconds()
@@ -83,6 +92,7 @@ public final class WorkoutDetailPickerActivity extends AppCompatActivity {
                         intent.putExtra(WorkoutDetailActivity.EXTRA_SESSION_ID, session.id);
                         startActivity(intent);
                     });
+            OnlineFeatures.styleWorkoutListItem(this, itemButton, session);
             listContainer.addView(itemButton, PageScaffold.matchWrap());
         }
     }
