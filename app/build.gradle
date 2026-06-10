@@ -65,7 +65,10 @@ android {
             dimension "mode"
             applicationIdSuffix ".online"
             buildConfigField "boolean", "ONLINE_ENABLED", "true"
-            buildConfigField "String", "SUPABASE_URL", "\"https://erukqyqwzbutwlaerzfn.supabase.co\""
+            // 默认直连 Supabase；构建时加 -PsupabaseUrl=https://你的代理域名 即可改走
+            // Cloudflare Worker 代理（用于降低国内访问延迟），无需改动任何 Java 代码。
+            def onlineSupabaseUrl = (project.findProperty("supabaseUrl") ?: "https://erukqyqwzbutwlaerzfn.supabase.co").toString().replaceAll("/+\$", "")
+            buildConfigField "String", "SUPABASE_URL", "\"${onlineSupabaseUrl}\""
             buildConfigField "String", "SUPABASE_ANON_KEY", "\"sb_publishable_xsxOxCx94LAvVoqo1xzWDA_xyRdglDV\""
             resValue "string", "app_name", "HR40 Online Fitness"
         }

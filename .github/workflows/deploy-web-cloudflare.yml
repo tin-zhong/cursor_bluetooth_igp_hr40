@@ -1,0 +1,53 @@
+name: Deploy Web to Cloudflare Pages
+
+# 国内加速用：把前端发到 Cloudflare Pages（配合自有域名比 GitHub Pages 快很多）。
+# 仅手动触发，避免在未配置 secrets 时空跑，也不影响现有 GitHub Pages 部署。
+#
+# 需要在仓库 Secrets 配置：
+#   CLOUDFLARE_API_TOKEN   有 Pages 编辑权限的 API Token
+#   CLOUDFLARE_ACCOUNT_ID  Cloudflare 账号 ID
+#   VITE_SUPABASE_URL      建议填 Worker 代理域名，如 https://api.example.com（拿到域名后）
+#   VITE_SUPABASE_ANON_KEY Supabase publishable / anon key
+# 并在 Cloudflare 建一个名为 hr40-web 的 Pages 项目（首次部署 wrangler 会提示创建）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: '站点 base 路径（绑定根域名用 /，pages.dev 子路径也用 /）'
+        type: string
+        default: '/'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install and generate static site
+        working-directory: web
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          NUXT_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          NUXT_APP_BASE_URL: ${{ inputs.base_url }}
+        run: |
+          npm ci
+          npx nuxi generate
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web/.output/public --project-name=hr40-web

@@ -1,0 +1,33 @@
+# Cloudflare Worker：Supabase 反向代理（国内加速）
+#
+# 部署：
+#   cd cloudflare/supabase-proxy
+#   npx wrangler deploy
+#
+# 这个 Worker 已经在账号里手动建过（名字相同），用 wrangler deploy 会原地覆盖更新。
+
+name = "hr40-supabase-proxy"
+main = "worker.js"
+compatibility_date = "2025-06-01"
+
+# 回源地址（Supabase 项目 API URL）。如需切换项目，改这里即可。
+[vars]
+SUPABASE_ORIGIN = "https://erukqyqwzbutwlaerzfn.supabase.co"
+
+# ---------------------------------------------------------------------------
+# 自有域名绑定（国内加速的关键，拿到域名后取消注释并改成你的域名）
+#
+# 前提：该域名已经在本 Cloudflare 账号里、且 DNS 由 Cloudflare 托管（橙云开启）。
+# routes 方式会自动建好路由，无需手动加 DNS 记录。
+#
+# routes = [
+#   { pattern = "api.example.com", custom_domain = true }
+# ]
+#
+# 绑定后，把客户端的 Supabase 地址改成 https://api.example.com 即可：
+#   - Web：部署时设环境变量 NUXT_PUBLIC_SUPABASE_URL=https://api.example.com
+#   - Android：构建时加 -PsupabaseUrl=https://api.example.com
+# ---------------------------------------------------------------------------
+
+# 临时验证（不推荐用于国内正式访问，*.workers.dev 常被墙）：
+workers_dev = true
