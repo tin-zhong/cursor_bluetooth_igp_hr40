@@ -104,6 +104,14 @@ public final class OnlineFeatures {
         return true;
     }
 
+    /** Tint a workout list item green once that record has been uploaded to the cloud. */
+    public static void styleWorkoutListItem(Activity activity, MaterialButton button, WorkoutSession session) {
+        if (session != null && OnlineSyncManager.isWorkoutSynced(activity, session.id)) {
+            button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(UPLOAD_GREEN));
+            button.setTextColor(android.graphics.Color.WHITE);
+        }
+    }
+
     public static void configureWorkoutUploadButton(Activity activity, MaterialButton button, WorkoutSession session) {
         button.setText("数据上传");
         OnlineUi.styleButton(button);
