@@ -217,45 +217,57 @@ async function onDelete(item: PlanItemRow) {
 
         <p v-if="!items.length" class="text-muted">还没有计划项。</p>
 
-        <ul v-else class="divide-y divide-default">
-          <li
-            v-for="(item, index) in items"
-            :key="item.id"
-            class="flex flex-wrap items-center gap-3 py-3"
+        <div v-else>
+          <div
+            class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 md:gap-6 pb-2 border-b border-default text-xs font-medium text-muted"
           >
-            <span class="text-sm text-muted w-6">{{ index + 1 }}.</span>
-            <span class="font-medium flex-1 min-w-0">{{ item.exercise_name }}</span>
-            <div class="flex items-center gap-1">
-              <UButton size="xs" variant="soft" color="neutral" label="-1" @click="onChangeSets(item, -1)" />
-              <span class="font-mono w-16 text-center">{{ item.planned_sets }} 组</span>
-              <UButton size="xs" variant="soft" color="neutral" label="+1" @click="onChangeSets(item, 1)" />
-            </div>
-            <div class="flex items-center gap-1">
-              <UButton size="xs" variant="soft" color="neutral" label="-10" @click="onChangeRest(item, -10)" />
-              <span class="font-mono w-20 text-center">休息 {{ item.rest_seconds }}s</span>
-              <UButton size="xs" variant="soft" color="neutral" label="+10" @click="onChangeRest(item, 10)" />
-            </div>
-            <div class="flex items-center gap-1">
-              <UButton
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                icon="i-lucide-arrow-up"
-                :disabled="index === 0"
-                @click="onMove(item, -1)"
-              />
-              <UButton
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                icon="i-lucide-arrow-down"
-                :disabled="index === items.length - 1"
-                @click="onMove(item, 1)"
-              />
-              <UButton size="xs" variant="soft" color="error" label="移除" @click="onDelete(item)" />
-            </div>
-          </li>
-        </ul>
+            <span>动作名称</span>
+            <span class="text-center">组数</span>
+            <span class="text-center">休息时间</span>
+            <span class="text-center">操作</span>
+          </div>
+
+          <ul class="divide-y divide-default">
+            <li
+              v-for="(item, index) in items"
+              :key="item.id"
+              class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 md:gap-6 py-3"
+            >
+              <span class="font-medium min-w-0 truncate">
+                <span class="text-muted">{{ index + 1 }}.</span> {{ item.exercise_name }}
+              </span>
+              <div class="flex items-center gap-1 justify-center">
+                <UButton size="xs" variant="soft" color="neutral" label="-1" @click="onChangeSets(item, -1)" />
+                <span class="font-mono w-8 text-center">{{ item.planned_sets }}</span>
+                <UButton size="xs" variant="soft" color="neutral" label="+1" @click="onChangeSets(item, 1)" />
+              </div>
+              <div class="flex items-center gap-1 justify-center">
+                <UButton size="xs" variant="soft" color="neutral" label="-10" @click="onChangeRest(item, -10)" />
+                <span class="font-mono w-12 text-center">{{ item.rest_seconds }}s</span>
+                <UButton size="xs" variant="soft" color="neutral" label="+10" @click="onChangeRest(item, 10)" />
+              </div>
+              <div class="flex items-center gap-1 justify-center">
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-lucide-arrow-up"
+                  :disabled="index === 0"
+                  @click="onMove(item, -1)"
+                />
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-lucide-arrow-down"
+                  :disabled="index === items.length - 1"
+                  @click="onMove(item, 1)"
+                />
+                <UButton size="xs" variant="soft" color="error" label="移除" @click="onDelete(item)" />
+              </div>
+            </li>
+          </ul>
+        </div>
       </UCard>
     </template>
   </div>
