@@ -41,13 +41,22 @@ public final class WorkoutRepository {
 
     /** Persist in-progress workout to a local JSON file. */
     public static void saveJson(Context context, WorkoutSession session) throws IOException, JSONException {
+        saveJsonString(context, session.id, session.toJson().toString(2));
+    }
+
+    /**
+     * Write a pre-serialized session JSON to disk. Callers that run off the main thread should
+     * serialize the session on the owning thread first and pass the resulting string here, so the
+     * background write never races with concurrent mutations of the session.
+     */
+    public static void saveJsonString(Context context, String sessionId, String json) throws IOException {
         File dir = workoutsDir(context);
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IOException("Unable to create workout directory");
         }
-        File file = new File(dir, session.id + ".json");
+        File file = new File(dir, sessionId + ".json");
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            writer.write(session.toJson().toString(2));
+            writer.write(json);
         }
     }
 
