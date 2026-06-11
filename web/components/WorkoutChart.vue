@@ -130,5 +130,10 @@ const option = computed(() => {
 </script>
 
 <template>
-  <VChart class="w-full h-64" :option="option" autoresize />
+  <!--
+    vue-echarts renders a <x-vue-echarts> custom element with an injected,
+    unlayered `height: 100%` rule. Tailwind's h-* utilities live in @layer
+    utilities and lose to unlayered rules, so the height must be set inline.
+  -->
+  <VChart class="w-full" :style="{ height: '16rem' }" :option="option" autoresize />
 </template>

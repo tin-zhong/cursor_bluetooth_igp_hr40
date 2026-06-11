@@ -217,22 +217,23 @@ async function onDelete(item: PlanItemRow) {
 
         <p v-if="!items.length" class="text-muted">还没有计划项。</p>
 
-        <div v-else>
-          <div
-            class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 md:gap-6 pb-2 border-b border-default text-xs font-medium text-muted"
-          >
-            <span>动作名称</span>
-            <span class="text-center">组数</span>
-            <span class="text-center">休息时间</span>
-            <span class="text-center">操作</span>
-          </div>
-
-          <ul class="divide-y divide-default">
-            <li
-              v-for="(item, index) in items"
-              :key="item.id"
-              class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 md:gap-6 py-3"
+        <div v-else class="overflow-x-auto">
+          <div class="min-w-[34rem]">
+            <div
+              class="grid grid-cols-[minmax(0,1fr)_7rem_9rem_8.5rem] items-center gap-3 pb-2 border-b border-default text-xs font-medium text-muted"
             >
+              <span>动作名称</span>
+              <span class="text-center">组数</span>
+              <span class="text-center">休息时间</span>
+              <span class="text-center">操作</span>
+            </div>
+
+            <ul class="divide-y divide-default">
+              <li
+                v-for="(item, index) in items"
+                :key="item.id"
+                class="grid grid-cols-[minmax(0,1fr)_7rem_9rem_8.5rem] items-center gap-3 py-3"
+              >
               <span class="font-medium min-w-0 truncate">
                 <span class="text-muted">{{ index + 1 }}.</span> {{ item.exercise_name }}
               </span>
@@ -266,7 +267,8 @@ async function onDelete(item: PlanItemRow) {
                 <UButton size="xs" variant="soft" color="error" label="移除" @click="onDelete(item)" />
               </div>
             </li>
-          </ul>
+            </ul>
+          </div>
         </div>
       </UCard>
     </template>
