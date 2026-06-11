@@ -1,6 +1,9 @@
 package com.cursor.hr40;
 
+import android.app.Activity;
 import android.content.Intent;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.ViewGroup;
@@ -9,6 +12,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
@@ -25,6 +30,20 @@ public final class UserManagementActivity extends AppCompatActivity {
     private TextInputEditText ageInput;
     private MaterialButton maleButton;
     private MaterialButton femaleButton;
+    private MaterialButton alertSoundButton;
+
+    private final ActivityResultLauncher<Intent> alertSoundPicker =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+                    return;
+                }
+                Uri picked = result.getData().getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
+                AlertSoundStore.save(this, picked);
+                if (alertSoundButton != null) {
+                    alertSoundButton.setText(alertSoundButtonLabel());
+                }
+                Toast.makeText(this, "提示声音已更新", Toast.LENGTH_SHORT).show();
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +87,15 @@ public final class UserManagementActivity extends AppCompatActivity {
 
         MaterialButton saveProfileButton = materialButton("保存资料", v -> saveProfile());
         root.addView(saveProfileButton, matchWrap());
+
+        TextView alertHint = new TextView(this);
+        alertHint.setText("提示声音");
+        alertHint.setPadding(0, dp(24), 0, dp(8));
+        OnlineUi.styleSectionTitle(alertHint);
+        root.addView(alertHint, matchWrap());
+
+        alertSoundButton = materialButton(alertSoundButtonLabel(), v -> pickAlertSound());
+        root.addView(alertSoundButton, matchWrap());
 
         TextView accountHint = new TextView(this);
         accountHint.setText("账户与安全");
@@ -148,6 +176,25 @@ public final class UserManagementActivity extends AppCompatActivity {
             }).start();
         } catch (NumberFormatException e) {
             Toast.makeText(this, "请检查输入格式", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private String alertSoundButtonLabel() {
+        return "提示声音：" + AlertSoundStore.currentTitle(this);
+    }
+
+    private void pickAlertSound() {
+        Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE,
+                RingtoneManager.TYPE_ALARM | RingtoneManager.TYPE_NOTIFICATION);
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "选择提示声音");
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true);
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, AlertSoundStore.getUri(this));
+        try {
+            alertSoundPicker.launch(intent);
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, "未找到系统铃声选择器", Toast.LENGTH_SHORT).show();
         }
     }
 

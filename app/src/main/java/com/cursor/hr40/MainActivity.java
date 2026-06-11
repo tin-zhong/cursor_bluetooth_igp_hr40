@@ -757,12 +757,12 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                         showToast("倒计时不能超过 24 小时");
                         return;
                     }
-                    startTrainingCountdown(seconds);
+                    startTrainingCountdown(seconds, false);
                 })
                 .show();
     }
 
-    private void startTrainingCountdown(int totalSeconds) {
+    private void startTrainingCountdown(int totalSeconds, boolean isRest) {
         dismissCountdownDialog();
         LinearLayout panel = verticalLayout();
         panel.setPadding(dp(16), dp(12), dp(16), dp(8));
@@ -775,19 +775,22 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         countdownDisplayText.setText(formatCountdownDisplay(totalSeconds));
         panel.addView(countdownDisplayText, matchWrap());
 
-        TextView hint = textView("倒计时进行中，可继续当前运动");
+        TextView hint = textView(isRest ? "组间休息倒计时，结束后将提示开始下一组" : "倒计时进行中，可继续当前运动");
         hint.setGravity(Gravity.CENTER_HORIZONTAL);
         hint.setTextColor(Color.DKGRAY);
         panel.addView(hint, matchWrap());
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
-                .setTitle("训练倒计时")
+                .setTitle(isRest ? "休息倒计时" : "训练倒计时")
                 .setView(panel)
                 .setCancelable(false)
                 .setNegativeButton("取消", (dialog, which) -> cancelTrainingCountdown());
         activeCountdownDialog = builder.create();
         activeCountdownDialog.show();
 
+        String finishedMessage = isRest ? "休息时间结束" : "训练时间到";
+        trainingCountdownTimer.setCompletionMessage(finishedMessage);
+        trainingCountdownTimer.setCustomAlertUri(AlertSoundStore.getUri(this));
         trainingCountdownTimer.setListener(new TrainingCountdownTimer.Listener() {
             @Override
             public void onTick(int remainingSeconds) {
@@ -801,11 +804,30 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                 if (countdownDisplayText != null) {
                     countdownDisplayText.setText("00:00");
                 }
-                showToast("倒计时结束");
-                dismissCountdownDialog();
+                showCountdownFinishedDialog(finishedMessage);
             }
         });
         trainingCountdownTimer.start(totalSeconds);
+    }
+
+    /**
+     * Show the countdown-finished prompt. The alert sound keeps looping (started by
+     * {@link TrainingCountdownTimer}) until the user taps confirm.
+     */
+    private void showCountdownFinishedDialog(String message) {
+        dismissCountdownDialog();
+        activeCountdownDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(message)
+                .setMessage("点击「我知道了」停止提示音。")
+                .setCancelable(false)
+                .setPositiveButton("我知道了", (dialog, which) -> {
+                    if (trainingCountdownTimer != null) {
+                        trainingCountdownTimer.acknowledge();
+                    }
+                    dismissCountdownDialog();
+                })
+                .create();
+        activeCountdownDialog.show();
     }
 
     private void cancelTrainingCountdown() {
@@ -1260,12 +1282,12 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     /**
-     * 与手机系统时钟整秒对齐：在下一秒的 0 毫秒时刻触发刷新。
+     * 以已经过的运动时长为基准，把下一次刷新对齐到「再过一整秒」的时刻，
+     * 使秒数严格每 1000ms 均匀递增，不会因系统时钟整秒对齐而跳秒。
      */
     private void scheduleNextUiSecondTick() {
-        long now = System.currentTimeMillis();
-        long nextSecondMillis = ((now / 1000L) + 1L) * 1000L;
-        long delay = nextSecondMillis - now;
+        long elapsedMillis = currentWorkoutDurationMillis();
+        long delay = 1000L - (elapsedMillis % 1000L);
         if (delay < UI_SECOND_TICK_MIN_DELAY_MS) {
             delay += 1000L;
         }
@@ -1274,21 +1296,11 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     /**
-     * 按系统时钟走过的整秒数计算运动时长（与状态栏时钟秒针同步跳变）。
+     * 按手机系统时钟实际走过的运动时长换算整秒数，保证逐秒均匀递增。
      * 归档、导出仍使用 {@link #currentWorkoutDurationMillis()} 的毫秒精度。
      */
     private long currentWorkoutDurationClockSeconds() {
-        if (activeSession == null) {
-            return 0L;
-        }
-        long nowSecond = System.currentTimeMillis() / 1000L;
-        long startSecond = activeSession.startMillis / 1000L;
-        long pausedSeconds = pausedDurationMillis / 1000L;
-        long seconds = nowSecond - startSecond - pausedSeconds;
-        if (workoutPaused) {
-            seconds -= (nowSecond - (pauseStartedAtMillis / 1000L));
-        }
-        return Math.max(0L, seconds);
+        return currentWorkoutDurationMillis() / 1000L;
     }
 
     private void startUiSecondTick() {
@@ -1657,7 +1669,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         if (restSeconds <= 0) {
             return;
         }
-        startTrainingCountdown(restSeconds);
+        startTrainingCountdown(restSeconds, true);
     }
 
     private int restSecondsForExercise(String exerciseName) {

@@ -185,7 +185,7 @@ public final class OnlineFeatures {
             @Override
             public void onError(String message) {
                 activity.runOnUiThread(() -> {
-                    activity.showToast("云端同步失败: " + message);
+                    activity.showToast("云同步失败");
                     onReady.run();
                 });
             }
@@ -208,7 +208,7 @@ public final class OnlineFeatures {
             public void onError(String message) {
                 if (context instanceof MainActivity) {
                     ((MainActivity) context).runOnUiThread(() ->
-                            ((MainActivity) context).showToast("云端同步失败: " + message));
+                            ((MainActivity) context).showToast("云同步失败"));
                 }
             }
         });

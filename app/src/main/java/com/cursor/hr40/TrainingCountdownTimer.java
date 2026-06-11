@@ -1,15 +1,23 @@
 package com.cursor.hr40;
 
 import android.content.Context;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.media.ToneGenerator;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 
 import java.util.Locale;
 
-/** Countdown for timed holds (e.g. plank) with beeps and voice prompt. */
+/**
+ * Countdown for timed holds and rest periods. When the countdown finishes it plays a
+ * completion alert that keeps looping until {@link #acknowledge()} is called, so the user
+ * must actively confirm before the prompt stops. The alert tone can be customised via
+ * {@link #setCustomAlertUri(Uri)}; otherwise a built-in beep is used.
+ */
 public final class TrainingCountdownTimer {
     public interface Listener {
         void onTick(int remainingSeconds);
@@ -17,14 +25,19 @@ public final class TrainingCountdownTimer {
         void onFinished();
     }
 
+    private static final long ALERT_BEEP_INTERVAL_MS = 700L;
+
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Context appContext;
     private TextToSpeech tts;
     private ToneGenerator toneGenerator;
+    private MediaPlayer alertMediaPlayer;
     private int remainingSeconds;
     private Listener listener;
     private boolean running;
-    private int beepCount;
+    private boolean alerting;
+    private String completionMessage = "时间到";
+    private Uri customAlertUri;
 
     private final Runnable tickRunnable = new Runnable() {
         @Override
@@ -44,17 +57,15 @@ public final class TrainingCountdownTimer {
         }
     };
 
-    private final Runnable beepRunnable = new Runnable() {
+    /** Repeats the built-in beep on an interval while the alert awaits acknowledgement. */
+    private final Runnable alertBeepRunnable = new Runnable() {
         @Override
         public void run() {
-            if (beepCount <= 0) {
+            if (!alerting) {
                 return;
             }
             playSingleBeep();
-            beepCount--;
-            if (beepCount > 0) {
-                handler.postDelayed(this, 280L);
-            }
+            handler.postDelayed(this, ALERT_BEEP_INTERVAL_MS);
         }
     };
 
@@ -64,6 +75,16 @@ public final class TrainingCountdownTimer {
 
     public void setListener(Listener listener) {
         this.listener = listener;
+    }
+
+    /** Voice prompt spoken when the countdown finishes (e.g. 「休息时间结束」). */
+    public void setCompletionMessage(String message) {
+        this.completionMessage = (message == null || message.trim().isEmpty()) ? "时间到" : message;
+    }
+
+    /** Custom completion sound; {@code null} restores the built-in beep. */
+    public void setCustomAlertUri(Uri uri) {
+        this.customAlertUri = uri;
     }
 
     public void start(int totalSeconds) {
@@ -80,8 +101,17 @@ public final class TrainingCountdownTimer {
     public void stop() {
         running = false;
         handler.removeCallbacks(tickRunnable);
-        handler.removeCallbacks(beepRunnable);
-        beepCount = 0;
+        acknowledge();
+    }
+
+    /** Stop the looping completion alert after the user confirms. */
+    public void acknowledge() {
+        alerting = false;
+        handler.removeCallbacks(alertBeepRunnable);
+        if (tts != null) {
+            tts.stop();
+        }
+        releaseAlertMediaPlayer();
     }
 
     public void release() {
@@ -100,17 +130,52 @@ public final class TrainingCountdownTimer {
     private void finishCountdown() {
         running = false;
         handler.removeCallbacks(tickRunnable);
-        playCompletionAlerts();
+        startCompletionAlertLoop();
         if (listener != null) {
             listener.onFinished();
         }
     }
 
-    private void playCompletionAlerts() {
-        beepCount = 3;
-        handler.post(beepRunnable);
+    private void startCompletionAlertLoop() {
+        alerting = true;
         if (tts != null) {
-            tts.speak("时间到", TextToSpeech.QUEUE_FLUSH, null, "countdown_done");
+            tts.speak(completionMessage, TextToSpeech.QUEUE_FLUSH, null, "countdown_done");
+        }
+        if (customAlertUri != null && startCustomLoopingSound()) {
+            return;
+        }
+        handler.removeCallbacks(alertBeepRunnable);
+        handler.post(alertBeepRunnable);
+    }
+
+    private boolean startCustomLoopingSound() {
+        try {
+            releaseAlertMediaPlayer();
+            alertMediaPlayer = new MediaPlayer();
+            alertMediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build());
+            alertMediaPlayer.setDataSource(appContext, customAlertUri);
+            alertMediaPlayer.setLooping(true);
+            alertMediaPlayer.prepare();
+            alertMediaPlayer.start();
+            return true;
+        } catch (Exception e) {
+            releaseAlertMediaPlayer();
+            return false;
+        }
+    }
+
+    private void releaseAlertMediaPlayer() {
+        if (alertMediaPlayer != null) {
+            try {
+                alertMediaPlayer.stop();
+            } catch (IllegalStateException ignored) {
+                // Player may not have been started; ignore.
+            }
+            alertMediaPlayer.release();
+            alertMediaPlayer = null;
         }
     }
 
