@@ -244,7 +244,7 @@ async function onDelete(item: PlanItemRow) {
               </div>
               <div class="flex items-center gap-1 justify-center">
                 <UButton size="xs" variant="soft" color="neutral" label="-10" @click="onChangeRest(item, -10)" />
-                <span class="font-mono w-12 text-center">{{ item.rest_seconds }}s</span>
+                <span class="font-mono w-12 text-center">{{ item.rest_seconds }}</span>
                 <UButton size="xs" variant="soft" color="neutral" label="+10" @click="onChangeRest(item, 10)" />
               </div>
               <div class="flex items-center gap-1 justify-center">
