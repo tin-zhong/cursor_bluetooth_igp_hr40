@@ -32,6 +32,11 @@ public final class OnlineFeatures {
         return true;
     }
 
+    /** 在线版：倒计时结束后循环提示音，直至用户确认。 */
+    public static boolean useLoopingCountdownAlert() {
+        return true;
+    }
+
     public static String headerUserName(Context context) {
         UserProfile profile = ProfileStore.load(context);
         if (profile == null || profile.name == null || profile.name.trim().isEmpty()) {
@@ -185,7 +190,7 @@ public final class OnlineFeatures {
             @Override
             public void onError(String message) {
                 activity.runOnUiThread(() -> {
-                    activity.showToast("云端同步失败: " + message);
+                    activity.showToast("云同步失败");
                     onReady.run();
                 });
             }
@@ -208,7 +213,7 @@ public final class OnlineFeatures {
             public void onError(String message) {
                 if (context instanceof MainActivity) {
                     ((MainActivity) context).runOnUiThread(() ->
-                            ((MainActivity) context).showToast("云端同步失败: " + message));
+                            ((MainActivity) context).showToast("云同步失败"));
                 }
             }
         });
