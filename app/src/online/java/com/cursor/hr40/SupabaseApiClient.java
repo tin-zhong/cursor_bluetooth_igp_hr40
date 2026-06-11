@@ -152,7 +152,7 @@ public final class SupabaseApiClient {
     }
 
     public List<TrainingPlanItem> fetchTrainingPlan() throws IOException, JSONException, ApiException {
-        String select = "planned_sets,position,exercises(name)";
+        String select = "planned_sets,rest_seconds,position,exercises(name)";
         String path = "/rest/v1/training_plan_items?select="
                 + URLEncoder.encode(select, StandardCharsets.UTF_8)
                 + "&order=position.asc";
@@ -168,6 +168,7 @@ public final class SupabaseApiClient {
             items.add(new TrainingPlanItem(
                     name,
                     row.optInt("planned_sets", 1),
+                    row.optInt("rest_seconds", TrainingPlanItem.DEFAULT_REST_SECONDS),
                     row.optInt("position", i)));
         }
         return items;

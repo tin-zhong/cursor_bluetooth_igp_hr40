@@ -115,7 +115,7 @@ async function confirmDelete() {
             @click="deleteModalOpen = true"
           />
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
           <div class="rounded-lg bg-elevated/50 border border-default p-3">
             <div class="text-xs text-muted">时长</div>
             <div class="font-semibold mt-1 text-default">
@@ -125,6 +125,10 @@ async function confirmDelete() {
           <div class="rounded-lg bg-elevated/50 border border-default p-3">
             <div class="text-xs text-muted">平均心率</div>
             <div class="font-semibold mt-1 text-default">{{ stats.avgBpm || '-' }} bpm</div>
+          </div>
+          <div class="rounded-lg bg-elevated/50 border border-default p-3">
+            <div class="text-xs text-muted">最高心率</div>
+            <div class="font-semibold mt-1 text-default">{{ stats.maxBpm || '-' }} bpm</div>
           </div>
           <div class="rounded-lg bg-elevated/50 border border-default p-3">
             <div class="text-xs text-muted">估算消耗</div>
