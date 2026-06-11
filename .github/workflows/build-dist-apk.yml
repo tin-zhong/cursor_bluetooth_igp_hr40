@@ -2,11 +2,6 @@ name: Build dist APK
 
 on:
   workflow_dispatch:
-    inputs:
-      release:
-        description: '生成正式版本 vX.Y.Z.apk（否则仅 debug 包）'
-        type: boolean
-        default: false
   push:
     branches: [main]
     paths:
@@ -19,11 +14,21 @@ on:
       - 'keystore/**'
       - '.github/workflows/build-dist-apk.yml'
 
+env:
+  # 强制所有 JS action 使用 Node 24，消除 Node 20 弃用警告。
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Resolve version
+        id: meta
+        run: |
+          VERSION_NAME="$(awk -F'"' '/versionName/ {print $2; exit}' app/build.gradle)"
+          echo "version=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Android SDK
         run: ./scripts/setup_android_env.sh
@@ -31,7 +36,7 @@ jobs:
       - name: Build signed dist APK
         env:
           HR40_DISTRIBUTION_KEYSTORE_BASE64: ${{ secrets.HR40_DISTRIBUTION_KEYSTORE_BASE64 }}
-          RELEASE_DIST_APK: ${{ inputs.release && '1' || '' }}
+          RELEASE_DIST_APK: '1'
         run: |
           export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
@@ -39,9 +44,11 @@ jobs:
           ./scripts/build_dist_apk.sh
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: hr40-offline-fitness-dist
+          # 仅上传本次构建的最新正式版与 debug，避免打包历史版本。
           path: |
-            dist/hr40-offline-fitness-v*.apk
+            dist/hr40-offline-fitness-v${{ steps.meta.outputs.version }}.apk
             dist/hr40-offline-fitness-debug.apk
+          if-no-files-found: error
