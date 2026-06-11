@@ -16,6 +16,7 @@ const successMessage = ref('');
 
 const newExerciseId = ref('');
 const newPlannedSets = ref(3);
+const newRestSeconds = ref(60);
 
 const headerTitle = computed(() => {
   const name = profile.value?.name?.trim();
@@ -64,12 +65,14 @@ async function onAddPlanItem() {
     return;
   }
   const sets = Math.max(1, Math.floor(Number(newPlannedSets.value) || 0));
+  const rest = Math.max(0, Math.min(3600, Math.floor(Number(newRestSeconds.value) || 0)));
   saving.value = true;
   try {
-    const created = await addPlanItem(newExerciseId.value, sets, items.value.length);
+    const created = await addPlanItem(newExerciseId.value, sets, rest, items.value.length);
     items.value = [...items.value, created];
     newExerciseId.value = '';
     newPlannedSets.value = 3;
+    newRestSeconds.value = 60;
     successMessage.value = `已加入计划：${created.exercise_name}`;
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '添加失败';
@@ -88,6 +91,20 @@ async function onChangeSets(item: PlanItemRow, delta: number) {
     await updatePlanItem(item.id, { planned_sets: next });
   } catch (error) {
     item.planned_sets = prev;
+    errorMessage.value = error instanceof Error ? error.message : '保存失败';
+  }
+}
+
+async function onChangeRest(item: PlanItemRow, delta: number) {
+  clearMessages();
+  const next = Math.max(0, Math.min(3600, item.rest_seconds + delta));
+  if (next === item.rest_seconds) return;
+  const prev = item.rest_seconds;
+  item.rest_seconds = next;
+  try {
+    await updatePlanItem(item.id, { rest_seconds: next });
+  } catch (error) {
+    item.rest_seconds = prev;
     errorMessage.value = error instanceof Error ? error.message : '保存失败';
   }
 }
@@ -144,7 +161,7 @@ async function onDelete(item: PlanItemRow) {
           <div>
             <h2 class="font-medium">添加计划项</h2>
             <p class="text-sm text-muted mt-1">
-              将动作加入力量训练计划，并指定计划组数。Online 版 App 训练时会显示进度并允许增减组数。
+              将动作加入力量训练计划，并指定计划组数与组间休息时间（秒）。Online 版 App 训练时会显示进度、允许增减组数，并在记录本组后自动按休息时间倒计时。
             </p>
           </div>
         </template>
@@ -162,8 +179,16 @@ async function onDelete(item: PlanItemRow) {
             type="number"
             :min="1"
             :max="100"
-            class="sm:w-32"
+            class="sm:w-28"
             placeholder="计划组数"
+          />
+          <UInput
+            v-model.number="newRestSeconds"
+            type="number"
+            :min="0"
+            :max="3600"
+            class="sm:w-32"
+            placeholder="组间休息(秒)"
           />
           <UButton
             type="submit"
@@ -204,6 +229,11 @@ async function onDelete(item: PlanItemRow) {
               <UButton size="xs" variant="soft" color="neutral" label="-1" @click="onChangeSets(item, -1)" />
               <span class="font-mono w-16 text-center">{{ item.planned_sets }} 组</span>
               <UButton size="xs" variant="soft" color="neutral" label="+1" @click="onChangeSets(item, 1)" />
+            </div>
+            <div class="flex items-center gap-1">
+              <UButton size="xs" variant="soft" color="neutral" label="-10" @click="onChangeRest(item, -10)" />
+              <span class="font-mono w-20 text-center">休息 {{ item.rest_seconds }}s</span>
+              <UButton size="xs" variant="soft" color="neutral" label="+10" @click="onChangeRest(item, 10)" />
             </div>
             <div class="flex items-center gap-1">
               <UButton

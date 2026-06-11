@@ -1415,7 +1415,11 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
             LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
             row.addView(nameView, nameParams);
 
-            TextView progress = textView(done + " / " + item.plannedSets + " 组");
+            String progressLabel = done + " / " + item.plannedSets + " 组";
+            if (item.restSeconds > 0) {
+                progressLabel += " · 休息 " + item.restSeconds + "s";
+            }
+            TextView progress = textView(progressLabel);
             progress.setPadding(dp(8), 0, dp(8), 0);
             boolean reached = item.plannedSets > 0 && done >= item.plannedSets;
             progress.setTextColor(reached ? getColor(R.color.md_secondary) : Color.DKGRAY);
@@ -1641,6 +1645,31 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         updateStrengthLog(activeSession);
         rebuildPlanSection();
         showToast("已记录: " + exerciseName + " " + set.displayWeight() + " x " + set.reps);
+        startRestCountdownForExercise(exerciseName.trim());
+    }
+
+    /**
+     * After recording a set, start a rest countdown using the rest time configured for this
+     * exercise in the training plan. When the time is up a beep and "时间到" voice prompt play.
+     */
+    private void startRestCountdownForExercise(String exerciseName) {
+        int restSeconds = restSecondsForExercise(exerciseName);
+        if (restSeconds <= 0) {
+            return;
+        }
+        startTrainingCountdown(restSeconds);
+    }
+
+    private int restSecondsForExercise(String exerciseName) {
+        if (exerciseName == null || exerciseName.isEmpty()) {
+            return 0;
+        }
+        for (TrainingPlanItem item : TrainingPlanStore.load(this)) {
+            if (exerciseName.equalsIgnoreCase(item.exerciseName)) {
+                return item.restSeconds;
+            }
+        }
+        return 0;
     }
 
     private void updateStrengthLog(WorkoutSession session) {
