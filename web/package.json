@@ -16,8 +16,10 @@
     "@internationalized/date": "^3.10.0",
     "@nuxt/ui": "^3.0.2",
     "@nuxtjs/supabase": "^1.4.6",
+    "echarts": "^5.6.0",
     "nuxt": "^3.16.2",
     "vue": "^3.5.13",
+    "vue-echarts": "^7.0.3",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
