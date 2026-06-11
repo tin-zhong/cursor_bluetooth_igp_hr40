@@ -52,6 +52,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 public final class MainActivity extends AppCompatActivity implements BleHeartRateManager.Listener {
@@ -63,6 +65,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private static final String KEY_LAST_AUTO_CLEANUP_DAY = "last_auto_cleanup_day";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    // 进行中运动记录的落盘放到单线程后台，避免主线程写盘卡顿拖慢运动计时刷新（导致跳秒）。
+    private final ExecutorService persistExecutor = Executors.newSingleThreadExecutor();
 
     private BleHeartRateManager heartRateManager;
     private UserProfile profile;
@@ -111,7 +115,6 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private androidx.appcompat.app.AlertDialog activeCountdownDialog;
     private TextView countdownDisplayText;
 
-    private static final long UI_SECOND_TICK_MIN_DELAY_MS = 50L;
     private static final long MAINTENANCE_INTERVAL_MS = 60_000L;
 
     private final Runnable uiSecondTick = new Runnable() {
@@ -172,6 +175,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         if (alertPlayer != null) {
             alertPlayer.release();
         }
+        // 让已排队的落盘任务跑完，避免丢失进行中的运动数据。
+        persistExecutor.shutdown();
         super.onDestroy();
     }
 
@@ -1022,11 +1027,24 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     }
 
     private void persistSessionQuietly(WorkoutSession session) {
+        // 在主线程（即数据写入线程）先序列化出一致快照，避免后台写盘与 onHeartRate 的 addSample 并发；
+        // 实际磁盘 I/O 交给单线程后台，主线程不再被写盘阻塞，运动计时得以均匀刷新。
+        final String json;
         try {
-            WorkoutRepository.saveJson(this, session);
-        } catch (IOException | JSONException e) {
+            json = session.toJson().toString(2);
+        } catch (JSONException e) {
             statusText.setText("保存运动记录失败: " + e.getMessage());
+            return;
         }
+        final String sessionId = session.id;
+        final android.content.Context appContext = getApplicationContext();
+        persistExecutor.execute(() -> {
+            try {
+                WorkoutRepository.saveJsonString(appContext, sessionId, json);
+            } catch (IOException e) {
+                runOnUiThread(() -> statusText.setText("保存运动记录失败: " + e.getMessage()));
+            }
+        });
     }
 
     private static final class ExportedFileItem {
@@ -1293,11 +1311,10 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
      * 使秒数严格每 1000ms 均匀递增，不会因系统时钟整秒对齐而跳秒。
      */
     private void scheduleNextUiSecondTick() {
+        // delay 落在 [1, 1000]：到「再过一整秒」的时刻刷新。即使某次 tick 因主线程繁忙
+        // 迟到（接近 1 秒），也按当前经过时间自我校正到下一秒，不会跳过中间的秒数。
         long elapsedMillis = currentWorkoutDurationMillis();
         long delay = 1000L - (elapsedMillis % 1000L);
-        if (delay < UI_SECOND_TICK_MIN_DELAY_MS) {
-            delay += 1000L;
-        }
         handler.removeCallbacks(uiSecondTick);
         handler.postDelayed(uiSecondTick, delay);
     }
