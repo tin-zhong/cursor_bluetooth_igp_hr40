@@ -32,6 +32,11 @@ public final class OnlineFeatures {
         return true;
     }
 
+    /** 在线版：倒计时结束后循环提示音，直至用户确认。 */
+    public static boolean useLoopingCountdownAlert() {
+        return true;
+    }
+
     public static String headerUserName(Context context) {
         UserProfile profile = ProfileStore.load(context);
         if (profile == null || profile.name == null || profile.name.trim().isEmpty()) {

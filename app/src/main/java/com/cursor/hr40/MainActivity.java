@@ -788,9 +788,11 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         activeCountdownDialog = builder.create();
         activeCountdownDialog.show();
 
-        String finishedMessage = isRest ? "休息时间结束" : "训练时间到";
-        trainingCountdownTimer.setCompletionMessage(finishedMessage);
-        trainingCountdownTimer.setCustomAlertUri(AlertSoundStore.getUri(this));
+        boolean loopAlert = OnlineFeatures.useLoopingCountdownAlert();
+        String voiceMessage = loopAlert ? (isRest ? "休息时间结束" : "训练时间到") : "时间到";
+        trainingCountdownTimer.setLoopAlertUntilAck(loopAlert);
+        trainingCountdownTimer.setCompletionMessage(voiceMessage);
+        trainingCountdownTimer.setCustomAlertUri(loopAlert ? AlertSoundStore.getUri(this) : null);
         trainingCountdownTimer.setListener(new TrainingCountdownTimer.Listener() {
             @Override
             public void onTick(int remainingSeconds) {
@@ -804,7 +806,12 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
                 if (countdownDisplayText != null) {
                     countdownDisplayText.setText("00:00");
                 }
-                showCountdownFinishedDialog(finishedMessage);
+                if (loopAlert) {
+                    showCountdownFinishedDialog(voiceMessage);
+                } else {
+                    showToast("倒计时结束");
+                    dismissCountdownDialog();
+                }
             }
         });
         trainingCountdownTimer.start(totalSeconds);
