@@ -42,7 +42,7 @@ public final class UserManagementActivity extends AppCompatActivity {
                 if (alertSoundButton != null) {
                     alertSoundButton.setText(alertSoundButtonLabel());
                 }
-                Toast.makeText(this, "提示声音已更新", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "提示铃声已更新", Toast.LENGTH_SHORT).show();
             });
 
     @Override
@@ -89,7 +89,7 @@ public final class UserManagementActivity extends AppCompatActivity {
         root.addView(saveProfileButton, matchWrap());
 
         TextView alertHint = new TextView(this);
-        alertHint.setText("提示声音");
+        alertHint.setText("提示铃声");
         alertHint.setPadding(0, dp(24), 0, dp(8));
         OnlineUi.styleSectionTitle(alertHint);
         root.addView(alertHint, matchWrap());
@@ -180,14 +180,13 @@ public final class UserManagementActivity extends AppCompatActivity {
     }
 
     private String alertSoundButtonLabel() {
-        return "提示声音：" + AlertSoundStore.currentTitle(this);
+        return "提示铃声：" + AlertSoundStore.currentTitle(this);
     }
 
     private void pickAlertSound() {
         Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
-        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE,
-                RingtoneManager.TYPE_ALARM | RingtoneManager.TYPE_NOTIFICATION);
-        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "选择提示声音");
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE);
+        intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "选择铃声");
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, AlertSoundStore.getUri(this));
