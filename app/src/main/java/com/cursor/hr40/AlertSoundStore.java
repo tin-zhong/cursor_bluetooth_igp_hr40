@@ -7,8 +7,8 @@ import android.net.Uri;
 import android.text.TextUtils;
 
 /**
- * Persists the user-selected alert sound used for countdown / rest-time prompts.
- * When no custom sound is chosen the timer falls back to its built-in beep.
+ * Persists the user-selected ringtone used for countdown / rest-time prompts.
+ * When no ringtone is chosen the timer falls back to its built-in beep.
  */
 public final class AlertSoundStore {
     private static final String PREFS_NAME = "hr40_alert_sound_prefs";
@@ -41,7 +41,7 @@ public final class AlertSoundStore {
     public static String currentTitle(Context context) {
         Uri uri = getUri(context);
         if (uri == null) {
-            return "默认提示音";
+            return "默认铃声";
         }
         try {
             android.media.Ringtone ringtone = RingtoneManager.getRingtone(context, uri);
@@ -54,7 +54,7 @@ public final class AlertSoundStore {
         } catch (RuntimeException ignored) {
             // Fall through to the default label when the URI is no longer resolvable.
         }
-        return "自定义提示音";
+        return "自定义铃声";
     }
 
     private static SharedPreferences prefs(Context context) {
