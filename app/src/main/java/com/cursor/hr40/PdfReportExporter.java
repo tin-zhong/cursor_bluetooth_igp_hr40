@@ -91,7 +91,7 @@ public final class PdfReportExporter {
         paint.setColor(Color.rgb(18, 52, 86));
         paint.setTextSize(22);
         paint.setFakeBoldText(true);
-        canvas.drawText("HR40 运动心率报告", MARGIN, y, paint);
+        canvas.drawText("心率设备运动心率报告", MARGIN, y, paint);
 
         y += 28;
         paint.setFakeBoldText(false);

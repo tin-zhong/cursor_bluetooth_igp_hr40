@@ -28,8 +28,8 @@ android {
         applicationId "com.cursor.hr40"
         minSdk 26
         targetSdk 35
-        versionCode 29
-        versionName "3.8.0"
+        versionCode 30
+        versionName "3.9.0"
     }
 
     buildFeatures {
@@ -67,7 +67,7 @@ android {
             buildConfigField "boolean", "ONLINE_ENABLED", "true"
             buildConfigField "String", "SUPABASE_URL", "\"https://erukqyqwzbutwlaerzfn.supabase.co\""
             buildConfigField "String", "SUPABASE_ANON_KEY", "\"sb_publishable_xsxOxCx94LAvVoqo1xzWDA_xyRdglDV\""
-            resValue "string", "app_name", "HR40 Online Fitness"
+            resValue "string", "app_name", "Online Fitness"
         }
     }
 

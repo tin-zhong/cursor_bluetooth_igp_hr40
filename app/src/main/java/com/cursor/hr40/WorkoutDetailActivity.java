@@ -52,7 +52,7 @@ public final class WorkoutDetailActivity extends AppCompatActivity {
             share.setType("application/pdf");
             share.putExtra(Intent.EXTRA_STREAM, uri);
             share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(share, "分享 HR40 运动报告"));
+            startActivity(Intent.createChooser(share, "分享心率设备运动报告"));
         } catch (IOException e) {
             Toast.makeText(this, "导出 PDF 失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
