@@ -91,12 +91,12 @@ public final class BleHeartRateManager {
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build();
         scanning = true;
-        listener.onStatus("正在扫描 HR40 心率带...");
+        listener.onStatus("正在扫描心率设备...");
         scanner.startScan(filters, settings, scanCallback);
 
         mainHandler.postDelayed(() -> {
             if (scanning) {
-                listener.onStatus("仍在扫描。请确认 HR40 已佩戴并处于唤醒状态。");
+                listener.onStatus("仍在扫描。请确认心率设备已佩戴并处于唤醒状态。");
             }
         }, 8000L);
     }

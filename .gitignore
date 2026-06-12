@@ -17,3 +17,6 @@ web/.env.local
 # Supabase local
 supabase/.branches
 supabase/.temp
+
+# 本地密钥口令汇总（仅本地保留，勿提交）
+keystore/SIGNING_KEYS.txt

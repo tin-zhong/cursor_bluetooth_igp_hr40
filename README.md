@@ -13,6 +13,25 @@
 - 「训练倒计时」：设定目标时间，到时播放提示音并语音播报，适用于平板支撑等计时训练。
 - PDF 写入设备 `Downloads/HR40` 目录，并可通过系统分享面板发送。
 
+## 开发约定（offline / online / app / web）
+
+本项目同一套核心代码通过 Gradle productFlavors 编译为 **offline（纯本地）** 与 **online（Supabase 云同步）** 两个版本，另有独立的 `web/` 网页端与 online 版共用同一套 Supabase 后端。开发/协作时按以下关键词决定修改范围：
+
+| 关键词 | 修改范围 | 对应路径 |
+|--------|----------|----------|
+| **online** | 仅在线版 | `app/src/online/...`（OnlineSyncManager、AuthActivity、SupabaseApiClient、OnlineFeatures 真实现等） |
+| **offline** | 仅离线版 | `app/src/offline/...`（主要是 `OnlineFeatures` 空实现） |
+| **app** / 样式·UI 相关 | **两个版本同时改** | `app/src/main/...`（共享核心代码、布局、`res/` 样式资源） |
+| **web** | 网页端 | `web/`（Nuxt 3 + Nuxt UI） |
+| 涉及数据库 | 直接在 Supabase 操作表 | `list_tables` 查看结构 → `apply_migration` 规范迁移 / RLS |
+
+要点：
+
+- 样式/UI 改动落在 `app/src/main/res/`，天然同时影响两个 flavor。
+- online 改动若牵涉共享逻辑，UI/数据模型放 `main`、网络同步放 `online`，须保证离线版仍能编译（靠 `offline` 的 `OnlineFeatures` 空实现兜底）。
+- 改 Supabase 表结构后，**同时检查 Android `online` 与 `web` 两端**是否需要同步修改（两端共享同一套表）。
+- 更详细的协作规范见 [`CLAUDE.md`](CLAUDE.md)。
+
 ## 构建
 
 项目是无第三方运行时依赖的原生 Android/Java 应用，可用 Android Studio 打开根目录后同步并运行，也可以直接使用仓库内的 Gradle Wrapper 构建。
@@ -51,6 +70,16 @@ dist/hr40-offline-fitness-debug.apk
 ```
 
 下载：仓库 `main` 分支 → `dist/hr40-offline-fitness-debug.apk` → **Download raw file**。
+
+## v3.9.0 更新
+
+- **软件更名**：在线版应用名改为 **Online Fitness**，离线版改为 **Offline Fitness**（界面内不再出现 HR40 字样，统一称「心率设备」）
+- **登录失败提示中文化（Online）**：`Invalid login credentials` 等英文错误改为「邮箱或密码错误」等中文提示
+- **主页「训练安排」入口**：主页新增与其他按钮一致的「训练安排」按钮，点击弹窗查看已规划的训练内容
+- **训练计划新增「建议次数」**：训练计划项支持每组建议次数（`training_plan_items.suggested_reps`），在计划中展示，选择计划动作时自动预填次数
+- **运动中新增平均心率**：与运动时长同一行展示（平均心率在左）；实时心率/平均心率/估算消耗/运动时长四项字号统一
+- **运动中按钮改版**：扫描设备改为左上角标签、训练倒计时改为右上角图标、暂停/结束改为底部**悬浮圆形图标按钮**（透明背景、长列表可完整滚动、无割裂感）；主页不再显示「结束运动」按钮
+- 版本号按规则：本次为新增功能，由 `3.8.0` 升至 `3.9.0`（`y+1`、`z` 归零）
 
 ## v3.8.0 更新
 
@@ -181,9 +210,9 @@ dist/hr40-offline-fitness-debug.apk
 - `y`：新增功能时 +1
 - `z`：仅页面/UI 调整时 +1
 
-当前版本：`3.8.0`
+当前版本：`3.9.0`
 - `x=3`：Keytel 算法增加“力量模式 0.88 修正系数”
-- `y=8`：随新增功能逐次 +1，最新一次为「倒计时提示支持自定义铃声」
+- `y=9`：随新增功能逐次 +1，最新一次为「训练安排入口 / 建议次数 / 平均心率」
 - `z=0`：本次为新增功能，`z` 归零
 
 > 发布新版本时按上述规则选择版本号：消耗算法演进改 `x`、新增功能改 `y`（并将 `z` 归零）、仅 UI 调整改 `z`，并同步更新 `app/build.gradle` 的 `versionName` 与 `versionCode`。

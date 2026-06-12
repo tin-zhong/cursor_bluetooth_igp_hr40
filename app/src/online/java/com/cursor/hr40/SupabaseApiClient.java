@@ -152,7 +152,7 @@ public final class SupabaseApiClient {
     }
 
     public List<TrainingPlanItem> fetchTrainingPlan() throws IOException, JSONException, ApiException {
-        String select = "planned_sets,rest_seconds,position,exercises(name)";
+        String select = "planned_sets,suggested_reps,rest_seconds,position,exercises(name)";
         String path = "/rest/v1/training_plan_items?select="
                 + URLEncoder.encode(select, StandardCharsets.UTF_8)
                 + "&order=position.asc";
@@ -168,6 +168,7 @@ public final class SupabaseApiClient {
             items.add(new TrainingPlanItem(
                     name,
                     row.optInt("planned_sets", 1),
+                    row.optInt("suggested_reps", TrainingPlanItem.DEFAULT_SUGGESTED_REPS),
                     row.optInt("rest_seconds", TrainingPlanItem.DEFAULT_REST_SECONDS),
                     row.optInt("position", i)));
         }
@@ -371,23 +372,65 @@ public final class SupabaseApiClient {
         try {
             JSONObject json = new JSONObject(body);
             if (json.has("msg")) {
-                return json.getString("msg");
+                return localizeAuthError(json.getString("msg"));
             }
             if (json.has("message")) {
-                return json.getString("message");
+                return localizeAuthError(json.getString("message"));
             }
             if (json.has("error_description")) {
-                return json.getString("error_description");
+                return localizeAuthError(json.getString("error_description"));
             }
             if (json.has("code") && "23505".equals(json.optString("code"))) {
                 return "该动作名称已存在";
             }
         } catch (JSONException ignored) {
         }
+        if (code == 401 || code == 400) {
+            return "邮箱或密码错误";
+        }
         if (code == 409) {
             return "数据冲突，请刷新后重试";
         }
         return "请求失败 (" + code + ")";
+    }
+
+    /** 把 Supabase 返回的英文鉴权错误翻译成中文提示。 */
+    private String localizeAuthError(String raw) {
+        if (raw == null) {
+            return "操作失败，请稍后重试";
+        }
+        String lower = raw.toLowerCase(java.util.Locale.US);
+        if (lower.contains("invalid login credentials")) {
+            return "邮箱或密码错误";
+        }
+        if (lower.contains("email not confirmed")) {
+            return "邮箱尚未验证，请先完成邮箱验证后再登录";
+        }
+        if (lower.contains("user already registered")
+                || lower.contains("already been registered")) {
+            return "该邮箱已注册，请直接登录";
+        }
+        if (lower.contains("password should be at least")) {
+            return "密码长度不足，请至少设置 6 位";
+        }
+        if (lower.contains("unable to validate email address")
+                || lower.contains("invalid email")) {
+            return "邮箱格式不正确";
+        }
+        if (lower.contains("email rate limit exceeded")
+                || lower.contains("rate limit")) {
+            return "操作过于频繁，请稍后再试";
+        }
+        if (lower.contains("signups not allowed")) {
+            return "当前不允许注册";
+        }
+        // 已是中文（例如本应用自定义抛出的提示）直接返回，否则给出兜底中文提示。
+        for (int i = 0; i < raw.length(); i++) {
+            if (raw.charAt(i) >= 0x4E00 && raw.charAt(i) <= 0x9FFF) {
+                return raw;
+            }
+        }
+        return "操作失败：" + raw;
     }
 
     public static final class AuthResult {

@@ -23,6 +23,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -83,19 +85,23 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
     private TextView statusText;
     private TextView bpmText;
     private TextView durationText;
+    private TextView avgHrText;
     private TextView caloriesText;
-    private LinearLayout durationSection;
+    private LinearLayout secondMetricsRow;
     private LinearLayout caloriesSection;
     private MaterialButton scanButton;
     private MaterialButton startButton;
+    private MaterialButton pauseButton;
     private MaterialButton endButton;
     private MaterialButton detailViewButton;
-    private MaterialButton countdownButton;
+    private MaterialButton countdownIcon;
     private MaterialButton exerciseManageButton;
     private MaterialButton editProfileButton;
     private MaterialButton fileManageButton;
     private MaterialButton historyManageButton;
     private MaterialButton logoutButton;
+    private MaterialButton planButton;
+    private LinearLayout bottomBar;
     private MaterialCardView strengthPanel;
     private LinearLayout planSection;
     private Spinner exerciseSpinner;
@@ -189,7 +195,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         if (hasBlePermissions()) {
             heartRateManager.startScan();
         } else {
-            showToast("需要蓝牙权限才能连接 HR40 心率带");
+            showToast("需要蓝牙权限才能连接心率设备");
         }
     }
 
@@ -290,6 +296,20 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         screen.setBackgroundColor(getColor(R.color.md_background));
         applySystemBarPadding(screen);
 
+        // 顶部栏：左上角「扫描设备」标签，右上角倒计时图标。
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setOrientation(LinearLayout.HORIZONTAL);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        topBar.setPadding(dp(16), dp(4), dp(16), dp(4));
+        scanButton = chipButton("扫描设备", v -> scanOrRequestPermissions());
+        topBar.addView(scanButton, wrapContent());
+        View topSpacer = new View(this);
+        topBar.addView(topSpacer, new LinearLayout.LayoutParams(0, 1, 1f));
+        countdownIcon = iconButton(R.drawable.ic_timer, v -> showCountdownSetupDialog());
+        countdownIcon.setVisibility(View.GONE);
+        topBar.addView(countdownIcon, wrapContent());
+        screen.addView(topBar, matchWrap());
+
         LinearLayout fixedSection = new LinearLayout(this);
         fixedSection.setOrientation(LinearLayout.VERTICAL);
         fixedSection.setPadding(dp(20), dp(0), dp(20), dp(8));
@@ -333,7 +353,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         LinearLayout bpmColumn = verticalLayout();
         bpmText = new TextView(this);
         bpmText.setText("--");
-        bpmText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 44f);
+        bpmText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 36f);
         bpmText.setTextColor(Color.GRAY);
         bpmText.setGravity(Gravity.CENTER_HORIZONTAL);
         bpmColumn.addView(bpmText, matchWrap());
@@ -347,7 +367,7 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         caloriesSection = verticalLayout();
         caloriesText = new TextView(this);
         caloriesText.setText("0.0 kcal");
-        caloriesText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f);
+        caloriesText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 36f);
         caloriesText.setTextColor(getColor(R.color.md_secondary));
         caloriesText.setGravity(Gravity.CENTER_HORIZONTAL);
         caloriesSection.addView(caloriesText, matchWrap());
@@ -361,21 +381,41 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
         metricsContent.addView(metricsRow, matchWrap());
 
-        // 时间在心率-消耗一行下方展示
-        durationSection = verticalLayout();
+        // 第二行：平均心率（左）与运动时长（右）同行展示
+        secondMetricsRow = new LinearLayout(this);
+        secondMetricsRow.setOrientation(LinearLayout.HORIZONTAL);
+        secondMetricsRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout avgColumn = verticalLayout();
+        avgHrText = new TextView(this);
+        avgHrText.setText("--");
+        avgHrText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 36f);
+        avgHrText.setTextColor(getColor(R.color.md_primary));
+        avgHrText.setGravity(Gravity.CENTER_HORIZONTAL);
+        avgColumn.addView(avgHrText, matchWrap());
+        TextView avgLabel = textView("平均心率");
+        avgLabel.setPadding(0, 0, 0, 0);
+        avgLabel.setGravity(Gravity.CENTER_HORIZONTAL);
+        avgLabel.setTextColor(Color.DKGRAY);
+        avgColumn.addView(avgLabel, matchWrap());
+        secondMetricsRow.addView(avgColumn, weighted());
+
+        LinearLayout durationColumn = verticalLayout();
         durationText = new TextView(this);
         durationText.setText("00:00");
-        durationText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40f);
+        durationText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 36f);
         durationText.setTextColor(Color.BLACK);
         durationText.setGravity(Gravity.CENTER_HORIZONTAL);
-        durationSection.addView(durationText, matchWrap());
+        durationColumn.addView(durationText, matchWrap());
         TextView durationLabel = textView("运动时长");
         durationLabel.setPadding(0, 0, 0, 0);
         durationLabel.setGravity(Gravity.CENTER_HORIZONTAL);
         durationLabel.setTextColor(Color.DKGRAY);
-        durationSection.addView(durationLabel, matchWrap());
-        durationSection.setVisibility(View.GONE);
-        metricsContent.addView(durationSection, matchWrap());
+        durationColumn.addView(durationLabel, matchWrap());
+        secondMetricsRow.addView(durationColumn, weighted());
+
+        secondMetricsRow.setVisibility(View.GONE);
+        metricsContent.addView(secondMetricsRow, matchWrap());
 
         fixedSection.addView(metricsCard, matchWrap());
 
@@ -385,22 +425,16 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(20), dp(8), dp(20), dp(24));
+        // 底部留出悬浮按钮的高度，避免运动中长列表（如力量训练多组记录）被底部按钮遮挡。
+        root.setPadding(dp(20), dp(8), dp(20), dp(112));
         scrollView.addView(root, matchWrap());
 
-        scanButton = materialButton("扫描并连接 HR40", v -> scanOrRequestPermissions());
-        root.addView(scanButton, matchWrap());
-
-        startButton = materialButton("开始运动", v -> handleStartPauseButton());
+        startButton = materialButton("开始运动", v -> promptWorkoutType());
         root.addView(startButton, matchWrap());
 
-        endButton = materialButton("结束运动", v -> confirmFinishWorkout());
-        endButton.setEnabled(false);
-        root.addView(endButton, matchWrap());
-
-        countdownButton = materialButton("训练倒计时", v -> showCountdownSetupDialog());
-        countdownButton.setVisibility(View.GONE);
-        root.addView(countdownButton, matchWrap());
+        // 主页：训练安排按钮，点击弹窗展示已规划好的训练内容
+        planButton = materialButton("训练安排", v -> showTrainingPlanDialog());
+        root.addView(planButton, matchWrap());
 
         detailViewButton = materialButton("查看运动明细", v ->
                 startActivity(new Intent(this, WorkoutDetailPickerActivity.class)));
@@ -466,26 +500,34 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         repsLabel.setTextColor(Color.DKGRAY);
         strengthContent.addView(repsLabel, matchWrap());
 
-        LinearLayout repsMinusRow = new LinearLayout(this);
-        repsMinusRow.setOrientation(LinearLayout.HORIZONTAL);
-        repsMinusRow.setGravity(Gravity.CENTER);
-        repsMinusRow.addView(repButton("-10", -10));
-        repsMinusRow.addView(repButton("-5", -5));
-        repsMinusRow.addView(repButton("-1", -1));
-        strengthContent.addView(repsMinusRow, matchWrap());
+        // 次数值与加减按钮放在同一行：[-10][-5][-1] 次数 [+1][+5][+10]
+        LinearLayout repsRow = new LinearLayout(this);
+        repsRow.setOrientation(LinearLayout.HORIZONTAL);
+        repsRow.setGravity(Gravity.CENTER);
+        repsRow.addView(repButton("-10", -10));
+        repsRow.addView(repButton("-5", -5));
+        repsRow.addView(repButton("-1", -1));
 
         repsValueText = textView("0");
-        repsValueText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f);
-        repsValueText.setGravity(Gravity.CENTER_HORIZONTAL);
-        strengthContent.addView(repsValueText, matchWrap());
+        repsValueText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f);
+        repsValueText.setGravity(Gravity.CENTER);
+        repsValueText.setMinWidth(dp(56));
+        LinearLayout.LayoutParams repsValueParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        repsValueParams.setMargins(dp(8), 0, dp(8), 0);
+        repsRow.addView(repsValueText, repsValueParams);
 
-        LinearLayout repsPlusRow = new LinearLayout(this);
-        repsPlusRow.setOrientation(LinearLayout.HORIZONTAL);
-        repsPlusRow.setGravity(Gravity.CENTER);
-        repsPlusRow.addView(repButton("+1", 1));
-        repsPlusRow.addView(repButton("+5", 5));
-        repsPlusRow.addView(repButton("+10", 10));
-        strengthContent.addView(repsPlusRow, matchWrap());
+        repsRow.addView(repButton("+1", 1));
+        repsRow.addView(repButton("+5", 5));
+        repsRow.addView(repButton("+10", 10));
+
+        // 在窄屏上可横向滚动，宽屏（平板）时居中铺满
+        HorizontalScrollView repsScroll = new HorizontalScrollView(this);
+        repsScroll.setHorizontalScrollBarEnabled(false);
+        repsScroll.setFillViewport(true);
+        repsScroll.addView(repsRow, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+        strengthContent.addView(repsScroll, matchWrap());
 
         strengthContent.addView(materialButton("记录本组", v -> recordStrengthSet()), matchWrap());
 
@@ -496,17 +538,42 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         root.addView(strengthPanel, matchWrap());
 
         screen.addView(fixedSection, matchWrap());
-        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+
+        // 用 FrameLayout 让滚动区铺满剩余空间，底部圆形按钮悬浮覆盖其上（不再单独占一行），
+        // 这样既不会出现按钮所在行的「白色分隔带」，长列表也能完整滚动到按钮上方。
+        FrameLayout contentFrame = new FrameLayout(this);
+        contentFrame.addView(scrollView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // 底部悬浮栏：圆形「暂停/继续」与「结束」按钮，透明背景，仅运动中显示。
+        bottomBar = new LinearLayout(this);
+        bottomBar.setOrientation(LinearLayout.HORIZONTAL);
+        bottomBar.setGravity(Gravity.CENTER);
+        bottomBar.setPadding(dp(12), dp(8), dp(12), dp(12));
+        bottomBar.setBackgroundColor(Color.TRANSPARENT);
+        pauseButton = circleIconButton(R.drawable.ic_pause, getColor(R.color.md_primary), v -> handlePauseResume());
+        bottomBar.addView(pauseButton);
+        endButton = circleIconButton(R.drawable.ic_stop, Color.rgb(211, 47, 47), v -> confirmFinishWorkout());
+        bottomBar.addView(endButton);
+        bottomBar.setVisibility(View.GONE);
+        FrameLayout.LayoutParams barParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT);
+        barParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        contentFrame.addView(bottomBar, barParams);
+
+        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f);
-        screen.addView(scrollView, scrollParams);
+        screen.addView(contentFrame, contentParams);
+
         setContentView(screen);
     }
 
-    private void handleStartPauseButton() {
+    private void handlePauseResume() {
         if (activeSession == null) {
-            promptWorkoutType();
             return;
         }
         if (workoutPaused) {
@@ -578,8 +645,8 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         strengthWeightInput.setText("");
         persistSessionQuietly(activeSession);
         statusText.setText(WorkoutSession.TYPE_STRENGTH.equals(workoutType)
-                ? "力量训练已开始，等待 HR40 心率数据..."
-                : "有氧训练已开始，等待 HR40 心率数据...");
+                ? "力量训练已开始，等待心率设备数据..."
+                : "有氧训练已开始，等待心率设备数据...");
         startUiSecondTick();
         updateWorkoutUi();
     }
@@ -1348,6 +1415,22 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         }
         caloriesText.setText(String.format(Locale.US, "%.1f kcal",
                 EnergyEstimator.estimateCalories(profile, activeSession)));
+        avgHrText.setText(currentAverageBpmLabel());
+    }
+
+    private String currentAverageBpmLabel() {
+        if (activeSession == null) {
+            return "--";
+        }
+        List<HeartRateSample> samples = activeSession.samples();
+        if (samples.isEmpty()) {
+            return "--";
+        }
+        long sum = 0L;
+        for (HeartRateSample sample : samples) {
+            sum += sample.bpm;
+        }
+        return String.valueOf(Math.round(sum / (double) samples.size()));
     }
 
     private String formatSessionLabel(WorkoutSession session) {
@@ -1357,22 +1440,17 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         return start + " | " + type + " | 时长 " + formatDuration(session.durationMillis());
     }
 
-    private void updateEndButtonStyle(boolean enabled) {
-        if (enabled) {
-            endButton.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(211, 47, 47)));
-            endButton.setTextColor(Color.WHITE);
-        } else {
-            endButton.setBackgroundTintList(ColorStateList.valueOf(Color.LTGRAY));
-            endButton.setTextColor(Color.DKGRAY);
-        }
-    }
-
     private void updateWorkoutUi() {
-        startButton.setEnabled(true);
-        boolean endEnabled = activeSession != null;
-        endButton.setEnabled(endEnabled);
-        updateEndButtonStyle(endEnabled);
         boolean inWorkout = activeSession != null;
+        startButton.setEnabled(true);
+        // 主页不再显示「结束运动」按钮；运动中改用底部圆形按钮。
+        startButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
+        bottomBar.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
+        if (pauseButton != null) {
+            pauseButton.setIconResource(workoutPaused ? R.drawable.ic_play : R.drawable.ic_pause);
+            pauseButton.setBackgroundTintList(ColorStateList.valueOf(
+                    getColor(workoutPaused ? R.color.md_secondary : R.color.md_primary)));
+        }
         // 运动过程中隐藏软件名称与用户名称，仅保留设备连接状态
         if (titleText != null) {
             titleText.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
@@ -1381,6 +1459,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
             headerUserNameText.setVisibility(View.GONE);
         } else {
             refreshHeaderUserName();
+        }
+        if (planButton != null) {
+            planButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         }
         detailViewButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         exerciseManageButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
@@ -1394,21 +1475,15 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         if (logoutButton != null) {
             logoutButton.setVisibility(inWorkout ? View.GONE : View.VISIBLE);
         }
-        countdownButton.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
-        if (!inWorkout) {
-            startButton.setText("开始运动");
-        } else if (workoutPaused) {
-            startButton.setText("继续运动");
-        } else {
-            startButton.setText("暂停运动");
-        }
-        durationSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
+        countdownIcon.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
+        secondMetricsRow.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         caloriesSection.setVisibility(inWorkout ? View.VISIBLE : View.GONE);
         if (inWorkout) {
             updateWorkoutElapsedDisplay();
         } else {
             lastDisplayedDurationSeconds = -1L;
             caloriesText.setText("0.0 kcal");
+            avgHrText.setText("--");
         }
 
         boolean showStrength = inWorkout
@@ -1452,6 +1527,9 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
             row.addView(nameView, nameParams);
 
             String progressLabel = done + " / " + item.plannedSets + " 组";
+            if (item.suggestedReps > 0) {
+                progressLabel += " · 建议 " + item.suggestedReps + " 次";
+            }
             if (item.restSeconds > 0) {
                 progressLabel += " · 休息 " + item.restSeconds + "s";
             }
@@ -1477,10 +1555,25 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         for (int i = 0; i < exerciseNames.size(); i++) {
             if (exerciseNames.get(i).equalsIgnoreCase(name)) {
                 exerciseSpinner.setSelection(i);
+                applySuggestedReps(name);
                 return;
             }
         }
         showToast("动作 \"" + name + "\" 不在动作库中，请先同步");
+    }
+
+    /** 选择计划中的动作时，自动把次数预填为该动作的建议次数。 */
+    private void applySuggestedReps(String name) {
+        if (name == null) {
+            return;
+        }
+        for (TrainingPlanItem item : TrainingPlanStore.load(this)) {
+            if (name.equalsIgnoreCase(item.exerciseName) && item.suggestedReps > 0) {
+                pendingReps = item.suggestedReps;
+                repsValueText.setText(String.valueOf(pendingReps));
+                return;
+            }
+        }
     }
 
     private MaterialButton repButton(String labelText, int delta) {
@@ -1771,6 +1864,112 @@ public final class MainActivity extends AppCompatActivity implements BleHeartRat
         button.setText(text);
         button.setAllCaps(false);
         return button;
+    }
+
+    /** 标签样式的小按钮（用于左上角「扫描设备」）。 */
+    private MaterialButton chipButton(String text, View.OnClickListener listener) {
+        MaterialButton button = new MaterialButton(
+                this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setMinHeight(0);
+        button.setMinimumHeight(0);
+        button.setCornerRadius(dp(18));
+        button.setPadding(dp(16), dp(6), dp(16), dp(6));
+        button.setOnClickListener(listener);
+        return button;
+    }
+
+    /** 仅图标的小按钮（用于右上角倒计时入口）。 */
+    private MaterialButton iconButton(int iconRes, View.OnClickListener listener) {
+        MaterialButton button = new MaterialButton(
+                this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setIconResource(iconRes);
+        button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        button.setIconTint(ColorStateList.valueOf(getColor(R.color.md_primary)));
+        button.setText("");
+        button.setIconPadding(0);
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setCornerRadius(dp(20));
+        button.setPadding(dp(10), dp(8), dp(10), dp(8));
+        button.setOnClickListener(listener);
+        return button;
+    }
+
+    /** 圆形图标按钮（用于底部「暂停/继续」「结束」），无文字、无阴影以配合透明玻璃底栏。 */
+    private MaterialButton circleIconButton(int iconRes, int bgColor, View.OnClickListener listener) {
+        MaterialButton button = new MaterialButton(this);
+        button.setText("");
+        button.setBackgroundTintList(ColorStateList.valueOf(bgColor));
+        button.setIconResource(iconRes);
+        button.setIconTint(ColorStateList.valueOf(Color.WHITE));
+        button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        button.setIconSize(dp(34));
+        button.setIconPadding(0);
+        button.setGravity(Gravity.CENTER);
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
+        button.setPadding(0, 0, 0, 0);
+        int size = dp(76);
+        button.setCornerRadius(size / 2);
+        button.setElevation(0f);
+        button.setStateListAnimator(null);
+        button.setOnClickListener(listener);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
+        params.setMargins(dp(24), dp(4), dp(24), dp(4));
+        button.setLayoutParams(params);
+        return button;
+    }
+
+    /** 主页「训练安排」按钮：弹窗展示已规划好的训练内容（只读）。 */
+    private void showTrainingPlanDialog() {
+        List<TrainingPlanItem> items = TrainingPlanStore.load(this);
+        if (items.isEmpty()) {
+            showToast("暂无训练安排");
+            return;
+        }
+        ScrollView scrollView = new ScrollView(this);
+        LinearLayout container = verticalLayout();
+        container.setPadding(dp(8), dp(4), dp(8), dp(4));
+        scrollView.addView(container);
+        for (TrainingPlanItem item : items) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, dp(6), 0, dp(6));
+
+            TextView nameView = textView(item.exerciseName);
+            nameView.setPadding(0, 0, 0, 0);
+            row.addView(nameView, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            StringBuilder detail = new StringBuilder();
+            detail.append(item.plannedSets).append(" 组");
+            if (item.suggestedReps > 0) {
+                detail.append(" · 建议 ").append(item.suggestedReps).append(" 次");
+            }
+            if (item.restSeconds > 0) {
+                detail.append(" · 休息 ").append(item.restSeconds).append("s");
+            }
+            TextView detailView = textView(detail.toString());
+            detailView.setPadding(dp(8), 0, 0, 0);
+            detailView.setTextColor(Color.DKGRAY);
+            row.addView(detailView, wrapContent());
+
+            container.addView(row, matchWrap());
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("训练安排")
+                .setView(scrollView)
+                .setPositiveButton("关闭", null)
+                .show();
     }
 
     private TextInputLayout inputLayout(String hint) {
